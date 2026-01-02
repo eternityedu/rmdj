@@ -90,7 +90,7 @@ export function HomePage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
       <PageHeader
         title="Dashboard"
         description="Your personal command center"
@@ -104,8 +104,8 @@ export function HomePage() {
         <CardContent className="p-6 relative">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <p className="text-sm text-muted-foreground uppercase tracking-wider mb-1">Net Worth</p>
-              <p className="text-4xl lg:text-5xl font-bold gradient-text mono">{formatCurrency(stats.netWorth)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Net Worth</p>
+              <p className="text-3xl lg:text-5xl font-bold gradient-text mono">{formatCurrency(stats.netWorth)}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span className={stats.netWorth >= 0 ? 'text-income' : 'text-expense'}>
                   {stats.netWorth >= 0 ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
@@ -122,7 +122,7 @@ export function HomePage() {
       </Card>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           title="Wallet Balance"
           value={formatCurrency(stats.walletBalance)}
@@ -156,7 +156,7 @@ export function HomePage() {
       </div>
 
       {/* Monthly Overview */}
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         <Card className="border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -164,8 +164,8 @@ export function HomePage() {
               Monthly Income
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-income mono">{formatCurrency(stats.monthlyIncome)}</p>
+          <CardContent className="pt-0">
+            <p className="text-xl lg:text-3xl font-bold text-income mono">{formatCurrency(stats.monthlyIncome)}</p>
             <p className="text-sm text-muted-foreground mt-1">{format(new Date(), 'MMMM yyyy')}</p>
           </CardContent>
         </Card>
@@ -177,8 +177,8 @@ export function HomePage() {
               Monthly Expenses
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-expense mono">{formatCurrency(stats.monthlyExpenses)}</p>
+          <CardContent className="pt-0">
+            <p className="text-xl lg:text-3xl font-bold text-expense mono">{formatCurrency(stats.monthlyExpenses)}</p>
             <p className="text-sm text-muted-foreground mt-1">{format(new Date(), 'MMMM yyyy')}</p>
           </CardContent>
         </Card>

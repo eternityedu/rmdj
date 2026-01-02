@@ -156,4 +156,29 @@
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
   }
+
+  /* Mobile-first utilities */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Mobile-specific styles */
+@media (max-width: 1023px) {
+  .stat-card {
+    @apply p-3;
+  }
+
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
 }

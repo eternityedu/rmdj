@@ -62,12 +62,12 @@ export function NotesPage() {
   ).sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0) || b.updatedAt.localeCompare(a.updatedAt));
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
       <PageHeader title="Notes" description="Capture your thoughts and ideas" icon={StickyNote} iconColor="text-notes"
         action={
           <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild><Button size="sm" className="gap-2"><Plus size={16} />Add Note</Button></DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editingNote ? 'Edit Note' : 'Add Note'}</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div><Label>Title</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required /></div>

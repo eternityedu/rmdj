@@ -37,10 +37,10 @@ export function DailyPage() {
   const progress = todayTasks.length > 0 ? Math.round((completed / todayTasks.length) * 100) : 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
       <PageHeader title="Daily" description={format(new Date(), 'EEEE, dd MMMM yyyy')} icon={Calendar} iconColor="text-daily"
         action={<Dialog open={isOpen} onOpenChange={setIsOpen}><DialogTrigger asChild><Button size="sm" className="gap-2"><Plus size={16} />Add Task</Button></DialogTrigger>
-          <DialogContent className="max-w-md"><DialogHeader><DialogTitle>Add Daily Task</DialogTitle></DialogHeader>
+          <DialogContent className="max-w-[95vw] sm:max-w-md"><DialogHeader><DialogTitle>Add Daily Task</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div><Label>Task</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required /></div>
               <div><Label>Priority</Label><Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as DailyTask['priority'] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="high">High</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="low">Low</SelectItem></SelectContent></Select></div>
@@ -53,7 +53,7 @@ export function DailyPage() {
       <Card className="border-border/50"><CardHeader className="pb-2"><CardTitle className="text-base">Today's Tasks</CardTitle></CardHeader>
         <CardContent><div className="space-y-2">{todayTasks.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">No tasks for today</p> : 
           todayTasks.sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0)).map(task => (
-            <div key={task.id} className={`flex items-center gap-3 p-3 rounded-lg border ${task.completed ? 'bg-muted/20 opacity-60' : 'bg-muted/30'} ${priorityColors[task.priority]}`} onClick={() => handleToggle(task.id)}>
+            <div key={task.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer active:scale-[0.98] transition-transform min-h-[52px] ${task.completed ? 'bg-muted/20 opacity-60' : 'bg-muted/30'} ${priorityColors[task.priority]}`} onClick={() => handleToggle(task.id)}>
               {task.completed ? <CheckCircle2 size={18} className="text-income" /> : <Circle size={18} />}
               <span className={task.completed ? 'line-through' : ''}>{task.title}</span>
               <span className="ml-auto text-xs text-muted-foreground">{task.category}</span>

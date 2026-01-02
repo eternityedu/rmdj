@@ -80,7 +80,7 @@ export function MoneyPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
       <PageHeader
         title="Money Manager"
         description="Complete financial control center"
@@ -111,7 +111,7 @@ export function MoneyPage() {
       />
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard
           title="Total Added"
           value={formatCurrency(stats.totalAdded)}
@@ -145,8 +145,8 @@ export function MoneyPage() {
       </div>
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="flex-wrap h-auto gap-2 bg-muted/30 p-1">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
+        <TabsList className="w-full overflow-x-auto flex gap-1 bg-muted/30 p-1 no-scrollbar">
           <TabsTrigger value="wallet" className="gap-2 data-[state=active]:bg-money data-[state=active]:text-primary-foreground">
             <Wallet size={14} /> Wallet
           </TabsTrigger>
