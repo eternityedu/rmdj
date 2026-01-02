@@ -147,7 +147,7 @@ export function SkillsPage() {
   const learningSkills = skills.filter(s => s.isCurrentlyLearning);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
       <PageHeader
         title="Skills"
         description="Track your learning journey"
@@ -161,7 +161,7 @@ export function SkillsPage() {
                 Add Skill
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingSkill ? 'Edit Skill' : 'Add Skill'}</DialogTitle>
               </DialogHeader>
@@ -289,7 +289,7 @@ export function SkillsPage() {
 
       {/* Category Filter */}
       <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-        <TabsList className="flex-wrap h-auto gap-2 bg-transparent p-0">
+        <TabsList className="w-full overflow-x-auto flex gap-1 bg-transparent p-0 no-scrollbar">
           <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             All
           </TabsTrigger>

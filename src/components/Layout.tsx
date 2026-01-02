@@ -5,6 +5,8 @@ import {
   Menu, X, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BottomNav } from '@/components/BottomNav';
+import { RemindersPanel } from '@/components/RemindersPanel';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home', color: 'text-primary' },
@@ -30,12 +32,12 @@ export function Layout({ children }: LayoutProps) {
       <header className="fixed top-0 left-0 right-0 h-14 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4 lg:hidden z-50">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+          className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
-        <span className="font-semibold text-lg gradient-text">RMDJ Hub</span>
-        <div className="w-10" />
+        <span className="font-semibold text-base gradient-text">RMDJ Hub</span>
+        <RemindersPanel />
       </header>
 
       {/* Sidebar Overlay */}
@@ -46,14 +48,14 @@ export function Layout({ children }: LayoutProps) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Desktop only */}
       <aside className={cn(
         "fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border z-50 transition-transform duration-300 lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-14 lg:h-16 flex items-center px-4 border-b border-sidebar-border">
+          <div className="h-14 lg:h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
                 <Crown size={18} className="text-primary-foreground" />
@@ -62,6 +64,9 @@ export function Layout({ children }: LayoutProps) {
                 <h1 className="font-bold text-base gradient-text">RMDJ Hub</h1>
                 <p className="text-[10px] text-muted-foreground">Founder Dashboard</p>
               </div>
+            </div>
+            <div className="hidden lg:block">
+              <RemindersPanel />
             </div>
           </div>
 
@@ -113,11 +118,14 @@ export function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-64 min-h-screen pt-14 lg:pt-0">
-        <div className="p-4 lg:p-6 max-w-7xl mx-auto">
+      <main className="flex-1 lg:ml-64 min-h-screen pt-14 pb-16 lg:pt-0 lg:pb-0">
+        <div className="p-3 lg:p-6 max-w-7xl mx-auto">
           {children}
         </div>
       </main>
+
+      {/* Bottom Navigation - Mobile only */}
+      <BottomNav />
     </div>
   );
 }

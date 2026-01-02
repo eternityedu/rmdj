@@ -106,7 +106,7 @@ export function CompaniesPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
       <PageHeader
         title="Companies"
         description="Manage your ventures and projects"
@@ -120,7 +120,7 @@ export function CompaniesPage() {
                 Add Company
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingCompany ? 'Edit Company' : 'Add Company'}</DialogTitle>
               </DialogHeader>
