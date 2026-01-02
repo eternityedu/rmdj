@@ -183,6 +183,10 @@ export const toggleDailyTask = (id: string) => {
   const tasks = getDailyTasks();
   saveDailyTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
 };
+export const deleteDailyTask = (id: string) => {
+  const tasks = getDailyTasks();
+  saveDailyTasks(tasks.filter(t => t.id !== id));
+};
 
 // Reset all data
 export const resetAllData = () => {
