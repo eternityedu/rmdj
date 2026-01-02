@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Building2, Plus, Edit2, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Building2, Plus, Edit2, Trash2, TrendingUp, TrendingDown, Upload, X } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,8 @@ export function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -39,6 +41,7 @@ export function CompaniesPage() {
     revenue: '',
     expenses: '',
     notes: '',
+    logo: '',
   });
 
   useEffect(() => {
@@ -47,6 +50,27 @@ export function CompaniesPage() {
 
   const loadCompanies = () => {
     setCompanies(getCompanies());
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setLogoPreview(base64);
+        setForm({ ...form, logo: base64 });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeLogo = () => {
+    setLogoPreview(null);
+    setForm({ ...form, logo: '' });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,6 +83,7 @@ export function CompaniesPage() {
       revenue: parseFloat(form.revenue) || 0,
       expenses: parseFloat(form.expenses) || 0,
       notes: form.notes,
+      logo: form.logo || undefined,
       createdAt: editingCompany?.createdAt || new Date().toISOString(),
     };
 
@@ -74,7 +99,8 @@ export function CompaniesPage() {
   };
 
   const resetForm = () => {
-    setForm({ name: '', description: '', status: 'idea', revenue: '', expenses: '', notes: '' });
+    setForm({ name: '', description: '', status: 'idea', revenue: '', expenses: '', notes: '', logo: '' });
+    setLogoPreview(null);
     setEditingCompany(null);
     setIsOpen(false);
   };
@@ -88,7 +114,9 @@ export function CompaniesPage() {
       revenue: company.revenue.toString(),
       expenses: company.expenses.toString(),
       notes: company.notes,
+      logo: company.logo || '',
     });
+    setLogoPreview(company.logo || null);
     setIsOpen(true);
   };
 
@@ -125,6 +153,45 @@ export function CompaniesPage() {
                 <DialogTitle>{editingCompany ? 'Edit Company' : 'Add Company'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Logo Upload */}
+                <div>
+                  <Label>Company Logo</Label>
+                  <div className="mt-2 flex items-center gap-4">
+                    {logoPreview ? (
+                      <div className="relative">
+                        <img src={logoPreview} alt="Logo preview" className="h-16 w-16 rounded-lg object-cover border border-border" />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={removeLogo}
+                        >
+                          <X size={12} />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div 
+                        className="h-16 w-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload size={20} className="text-muted-foreground" />
+                      </div>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                    />
+                    {!logoPreview && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                        Upload Logo
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 <div>
                   <Label>Company Name</Label>
                   <Input
@@ -212,11 +279,20 @@ export function CompaniesPage() {
               <Card key={company.id} className="border-border/50 hover:border-investment/30 transition-colors">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-base">{company.name}</CardTitle>
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs mt-1 ${statusColors[company.status]}`}>
-                        {statusLabels[company.status]}
-                      </span>
+                    <div className="flex items-center gap-3">
+                      {company.logo ? (
+                        <img src={company.logo} alt={company.name} className="h-10 w-10 rounded-lg object-cover border border-border shrink-0" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Building2 size={18} className="text-muted-foreground" />
+                        </div>
+                      )}
+                      <div>
+                        <CardTitle className="text-base">{company.name}</CardTitle>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs mt-1 ${statusColors[company.status]}`}>
+                          {statusLabels[company.status]}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(company)}>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Crown, Target, Brain, Zap, Plus, Play, Lightbulb, BookOpen, ChevronDown, ChevronUp, Trophy, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Crown, Target, Brain, Play, Lightbulb, BookOpen, ChevronDown, ChevronUp, Trophy, AlertTriangle, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { getVision, addVisionItem, getSkills, getDailyOverviews, saveDailyOverview, getWeeklyReviews, saveWeeklyReview, generateId } from '@/lib/storage';
 import { VisionItem, DailyOverview, WeeklyReview } from '@/types';
 import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { FocusMode } from '@/components/FocusMode';
 
 export function FounderPage() {
   const [vision, setVision] = useState<VisionItem[]>([]);
@@ -20,6 +21,7 @@ export function FounderPage() {
   const [isVisionOpen, setIsVisionOpen] = useState(false);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
+  const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(true);
   const [visionForm, setVisionForm] = useState({ title: '', description: '', category: 'mit' as VisionItem['category'], progress: '0' });
   const [overviewForm, setOverviewForm] = useState({ studyTime: '', companyProgress: '', healthScore: '', disciplineScore: '', notes: '' });
@@ -88,16 +90,37 @@ export function FounderPage() {
 
   const categoryColors: Record<string, string> = { mit: 'bg-primary/20 text-primary', sids: 'bg-founder/20 text-founder', rmdj: 'bg-income/20 text-income', personal: 'bg-notes/20 text-notes' };
 
+  const handleDeepWorkClick = () => {
+    if (!isTimerActive) {
+      setIsTimerActive(true);
+      setIsFocusModeOpen(true);
+    } else {
+      setIsFocusModeOpen(true);
+    }
+  };
+
+  const handleFocusModeClose = () => {
+    setIsFocusModeOpen(false);
+    setIsTimerActive(false);
+  };
+
   return (
     <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
       <PageHeader title="Founder" description="Your personal CEO command center" icon={Crown} iconColor="text-founder" />
 
+      {/* Focus Mode Overlay */}
+      <FocusMode 
+        isOpen={isFocusModeOpen} 
+        onClose={handleFocusModeClose}
+        initialSeconds={timerSeconds}
+      />
+
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="border-founder/20 bg-founder/5 cursor-pointer hover:bg-founder/10 transition-colors active:scale-95" onClick={() => setIsTimerActive(!isTimerActive)}>
+        <Card className="border-founder/20 bg-founder/5 cursor-pointer hover:bg-founder/10 transition-colors active:scale-95" onClick={handleDeepWorkClick}>
           <CardContent className="p-3 text-center">
             <Play size={20} className={`mx-auto mb-1 ${isTimerActive ? 'text-income' : 'text-founder'}`} />
-            <p className="text-xs font-medium">{isTimerActive ? 'Stop' : 'Deep Work'}</p>
+            <p className="text-xs font-medium">{isTimerActive ? 'Resume Focus' : 'Deep Work'}</p>
             <p className="text-base font-bold mono text-founder">{formatTime(timerSeconds)}</p>
           </CardContent>
         </Card>

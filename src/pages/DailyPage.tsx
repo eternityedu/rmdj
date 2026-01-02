@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, CheckCircle2, Circle } from 'lucide-react';
+import { Calendar, Plus, CheckCircle2, Circle, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { getDailyTasks, addDailyTask, toggleDailyTask, generateId } from '@/lib/storage';
+import { getDailyTasks, addDailyTask, toggleDailyTask, deleteDailyTask, generateId } from '@/lib/storage';
 import { DailyTask } from '@/types';
 import { format } from 'date-fns';
 
@@ -31,6 +31,12 @@ export function DailyPage() {
   };
 
   const handleToggle = (id: string) => { toggleDailyTask(id); loadTasks(); };
+  
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    deleteDailyTask(id);
+    loadTasks();
+  };
 
   const todayTasks = tasks.filter(t => t.date === today);
   const completed = todayTasks.filter(t => t.completed).length;
@@ -55,8 +61,11 @@ export function DailyPage() {
           todayTasks.sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0)).map(task => (
             <div key={task.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer active:scale-[0.98] transition-transform min-h-[52px] ${task.completed ? 'bg-muted/20 opacity-60' : 'bg-muted/30'} ${priorityColors[task.priority]}`} onClick={() => handleToggle(task.id)}>
               {task.completed ? <CheckCircle2 size={18} className="text-income" /> : <Circle size={18} />}
-              <span className={task.completed ? 'line-through' : ''}>{task.title}</span>
-              <span className="ml-auto text-xs text-muted-foreground">{task.category}</span>
+              <span className={`flex-1 ${task.completed ? 'line-through' : ''}`}>{task.title}</span>
+              <span className="text-xs text-muted-foreground">{task.category}</span>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={(e) => handleDelete(e, task.id)}>
+                <Trash2 size={14} />
+              </Button>
             </div>
           ))}
         </div></CardContent>

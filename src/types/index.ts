@@ -159,6 +159,7 @@ export interface Company {
   revenue: number;
   expenses: number;
   notes: string;
+  logo?: string; // base64 or URL
   createdAt: string;
 }
 
