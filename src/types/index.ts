@@ -86,7 +86,7 @@ export interface IntellectualProperty {
 export interface Skill {
   id: string;
   name: string;
-  category: 'robotics' | 'automation' | 'coding' | 'ai-ml' | 'math' | 'physics' | 'chemistry' | 'business' | 'communication';
+  category: 'robotics' | 'automation' | 'coding' | 'ai-ml' | 'math' | 'physics' | 'chemistry' | 'business' | 'communication' | 'other';
   level: number; // 0-100
   timeSpentToday: number; // minutes
   totalHours: number;
@@ -98,6 +98,15 @@ export interface Skill {
   lastUpdated: string;
 }
 
+// Skill Tasks
+export interface SkillTask {
+  id: string;
+  skillId: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+}
+
 // Founder Types
 export interface VisionItem {
   id: string;
@@ -106,6 +115,8 @@ export interface VisionItem {
   category: 'mit' | 'sids' | 'rmdj' | 'personal';
   deadline?: string;
   progress: number;
+  completed?: boolean;
+  targetDate?: string;
 }
 
 export interface DailyOverview {
@@ -163,13 +174,25 @@ export interface Company {
   createdAt: string;
 }
 
+// Pomodoro Session Types
+export interface PomodoroSession {
+  id: string;
+  startTime: string;
+  endTime: string;
+  type: 'work' | 'break';
+  completed: boolean;
+}
+
 // Reminder Types
 export interface Reminder {
   id: string;
-  type: 'sip' | 'emi' | 'skill' | 'review';
+  type: 'sip' | 'emi' | 'skill' | 'review' | 'daily';
   title: string;
-  dueDate: string;
+  message: string;
+  dueDate?: string;
+  priority: 'high' | 'medium' | 'low';
   isRead: boolean;
+  createdAt: string;
 }
 
 // Insight Types
@@ -179,4 +202,9 @@ export interface Insight {
   message: string;
   trend: 'up' | 'down' | 'neutral';
   createdAt: string;
+}
+
+// Settings Types
+export interface AppSettings {
+  otherCategoryName: string;
 }

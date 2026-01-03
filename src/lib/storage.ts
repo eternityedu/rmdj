@@ -1,4 +1,4 @@
-import { WalletEntry, Expense, Investment, Income, Loan, IntellectualProperty, Skill, Note, Company, VisionItem, DailyOverview, WeeklyReview, DailyTask } from '@/types';
+import { WalletEntry, Expense, Investment, Income, Loan, IntellectualProperty, Skill, Note, Company, VisionItem, DailyOverview, WeeklyReview, DailyTask, SkillTask, PomodoroSession, AppSettings } from '@/types';
 
 const STORAGE_KEYS = {
   wallet: 'rmdj_wallet',
@@ -8,14 +8,17 @@ const STORAGE_KEYS = {
   loans: 'rmdj_loans',
   ip: 'rmdj_ip',
   skills: 'rmdj_skills',
+  skillTasks: 'rmdj_skill_tasks',
   notes: 'rmdj_notes',
   companies: 'rmdj_companies',
   vision: 'rmdj_vision',
   dailyOverview: 'rmdj_daily_overview',
   weeklyReviews: 'rmdj_weekly_reviews',
   dailyTasks: 'rmdj_daily_tasks',
-  tasks: 'rmdj_tasks', // Keep data but hide UI
-  goals: 'rmdj_goals', // Keep data but hide UI
+  pomodoroSessions: 'rmdj_pomodoro_sessions',
+  settings: 'rmdj_settings',
+  tasks: 'rmdj_tasks',
+  goals: 'rmdj_goals',
 };
 
 // Generic storage functions
@@ -29,6 +32,23 @@ function getFromStorage<T>(key: string, defaultValue: T[]): T[] {
 }
 
 function saveToStorage<T>(key: string, data: T[]): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error('Failed to save to storage:', e);
+  }
+}
+
+function getObjectFromStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function saveObjectToStorage<T>(key: string, data: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
@@ -116,6 +136,22 @@ export const updateSkill = (id: string, skill: Partial<Skill>) => {
   saveSkills(skills.map(s => s.id === id ? { ...s, ...skill } : s));
 };
 
+// Skill Tasks
+export const getSkillTasks = (): SkillTask[] => getFromStorage(STORAGE_KEYS.skillTasks, []);
+export const saveSkillTasks = (data: SkillTask[]) => saveToStorage(STORAGE_KEYS.skillTasks, data);
+export const addSkillTask = (task: SkillTask) => {
+  const tasks = getSkillTasks();
+  saveSkillTasks([...tasks, task]);
+};
+export const toggleSkillTask = (id: string) => {
+  const tasks = getSkillTasks();
+  saveSkillTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+};
+export const deleteSkillTask = (id: string) => {
+  const tasks = getSkillTasks();
+  saveSkillTasks(tasks.filter(t => t.id !== id));
+};
+
 // Notes
 export const getNotes = (): Note[] => getFromStorage(STORAGE_KEYS.notes, []);
 export const saveNotes = (data: Note[]) => saveToStorage(STORAGE_KEYS.notes, data);
@@ -151,8 +187,12 @@ export const addVisionItem = (item: VisionItem) => {
   const vision = getVision();
   saveVision([...vision, item]);
 };
+export const updateVisionItem = (id: string, item: Partial<VisionItem>) => {
+  const vision = getVision();
+  saveVision(vision.map(v => v.id === id ? { ...v, ...item } : v));
+};
 
-// Daily Overview
+// Daily Overview - Persistent storage by date
 export const getDailyOverviews = (): DailyOverview[] => getFromStorage(STORAGE_KEYS.dailyOverview, []);
 export const saveDailyOverview = (overview: DailyOverview) => {
   const overviews = getDailyOverviews();
@@ -164,12 +204,26 @@ export const saveDailyOverview = (overview: DailyOverview) => {
   }
   saveToStorage(STORAGE_KEYS.dailyOverview, overviews);
 };
+export const getDailyOverviewByDate = (date: string): DailyOverview | null => {
+  const overviews = getDailyOverviews();
+  return overviews.find(o => o.date === date) || null;
+};
 
-// Weekly Reviews
+// Weekly Reviews - Persistent storage by week
 export const getWeeklyReviews = (): WeeklyReview[] => getFromStorage(STORAGE_KEYS.weeklyReviews, []);
 export const saveWeeklyReview = (review: WeeklyReview) => {
   const reviews = getWeeklyReviews();
-  saveToStorage(STORAGE_KEYS.weeklyReviews, [...reviews, review]);
+  const existing = reviews.findIndex(r => r.weekStart === review.weekStart);
+  if (existing >= 0) {
+    reviews[existing] = review;
+  } else {
+    reviews.push(review);
+  }
+  saveToStorage(STORAGE_KEYS.weeklyReviews, reviews);
+};
+export const getWeeklyReviewByWeek = (weekStart: string): WeeklyReview | null => {
+  const reviews = getWeeklyReviews();
+  return reviews.find(r => r.weekStart === weekStart) || null;
 };
 
 // Daily Tasks
@@ -187,6 +241,21 @@ export const deleteDailyTask = (id: string) => {
   const tasks = getDailyTasks();
   saveDailyTasks(tasks.filter(t => t.id !== id));
 };
+
+// Pomodoro Sessions
+export const getPomodoroSessions = (): PomodoroSession[] => getFromStorage(STORAGE_KEYS.pomodoroSessions, []);
+export const savePomodoroSessions = (data: PomodoroSession[]) => saveToStorage(STORAGE_KEYS.pomodoroSessions, data);
+export const addPomodoroSession = (session: PomodoroSession) => {
+  const sessions = getPomodoroSessions();
+  savePomodoroSessions([...sessions, session]);
+};
+
+// Settings
+const defaultSettings: AppSettings = {
+  otherCategoryName: 'Other',
+};
+export const getSettings = (): AppSettings => getObjectFromStorage(STORAGE_KEYS.settings, defaultSettings);
+export const saveSettings = (settings: AppSettings) => saveObjectToStorage(STORAGE_KEYS.settings, settings);
 
 // Reset all data
 export const resetAllData = () => {
