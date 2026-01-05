@@ -192,22 +192,40 @@ export function WalletSection({ onUpdate }: WalletSectionProps) {
           </CardHeader>
           <CardContent>
             {monthlyData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Line type="monotone" dataKey="added" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="spent" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Line type="monotone" dataKey="added" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="spent" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+                {/* Value List */}
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground mb-2">Monthly Values</p>
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                    {monthlyData.map((data, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm py-1 px-2 rounded bg-muted/30">
+                        <span className="font-medium">{data.month}</span>
+                        <div className="flex gap-4">
+                          <span className="text-income">+{formatCurrency(data.added)}</span>
+                          <span className="text-expense">-{formatCurrency(data.spent)}</span>
+                          <span className={data.balance >= 0 ? 'text-money' : 'text-expense'}>{formatCurrency(data.balance)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
                 No data yet
@@ -223,32 +241,49 @@ export function WalletSection({ onUpdate }: WalletSectionProps) {
           </CardHeader>
           <CardContent>
             {categoryData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={80}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Value List */}
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground mb-2">Source Breakdown</p>
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                    {categoryData.map((data, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm py-1 px-2 rounded bg-muted/30">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.color }} />
+                          <span className="capitalize">{data.name}</span>
+                        </div>
+                        <span className="font-medium mono">{formatCurrency(data.value)}</span>
+                      </div>
                     ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => formatCurrency(value)}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
                 No data yet

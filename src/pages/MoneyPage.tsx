@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wallet, Plus, Edit2, Trash2, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building, FileText, RefreshCw, Download } from 'lucide-react';
+import { Wallet, Plus, Edit2, Trash2, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building, FileText, RefreshCw, Download, DollarSign } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { IncomeSection } from '@/components/money/IncomeSection';
 import { LoansSection } from '@/components/money/LoansSection';
 import { ReportsSection } from '@/components/money/ReportsSection';
 import { IPSection } from '@/components/money/IPSection';
-import { getWallet, getExpenses, getInvestments, getIncomes, getLoans, getIPs, resetAllData } from '@/lib/storage';
+import { getWallet, getExpenses, getInvestments, getIncomes, getLoans, getIPs, resetAllData, calculateNetWorth, getNetWorthLog } from '@/lib/storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -25,6 +25,9 @@ export function MoneyPage() {
     balance: 0,
     monthlyIncome: 0,
     monthlyExpenses: 0,
+    netWorth: 0,
+    totalExpenses: 0,
+    totalInvestmentCost: 0,
   });
   const [isResetOpen, setIsResetOpen] = useState(false);
 
@@ -36,6 +39,8 @@ export function MoneyPage() {
     const wallet = getWallet();
     const expenses = getExpenses();
     const incomes = getIncomes();
+    const investments = getInvestments();
+    const ips = getIPs();
 
     const totalAdded = wallet
       .filter(w => w.type === 'added')
@@ -54,12 +59,36 @@ export function MoneyPage() {
       .filter(e => e.date.startsWith(currentMonth))
       .reduce((acc, e) => acc + e.amount, 0);
 
+    // Total all expenses
+    const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
+
+    // Total investment costs
+    const totalInvestmentCost = investments.reduce((acc, inv) => {
+      switch (inv.type) {
+        case 'stocks': return acc + (inv.quantity || 0) * (inv.buyPrice || 0);
+        case 'property': return acc + (inv.buyValue || 0);
+        case 'crypto': return acc + (inv.cryptoQuantity || 0) * (inv.cryptoBuyPrice || 0);
+        case 'gold': return acc + (inv.amountInvested || 0);
+        case 'silver': return acc + (inv.silverAmount || 0);
+        case 'sip': return acc + (inv.monthlyAmount || 0) * 12;
+        default: return acc;
+      }
+    }, 0);
+
+    // Total IP costs
+    const totalIPCosts = ips.reduce((acc, ip) => acc + ip.costToBuy, 0);
+
+    const netWorth = calculateNetWorth();
+
     setStats({
       totalAdded,
       totalSpent,
       balance: totalAdded - totalSpent,
       monthlyIncome,
       monthlyExpenses,
+      netWorth,
+      totalExpenses,
+      totalInvestmentCost: totalInvestmentCost + totalIPCosts,
     });
   };
 
@@ -110,6 +139,39 @@ export function MoneyPage() {
         }
       />
 
+      {/* Net Worth Summary */}
+      <Card className="border-money/30 bg-gradient-to-r from-money/10 to-transparent">
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-money/20">
+                <DollarSign className="text-money" size={24} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Net Worth</p>
+                <p className={`text-3xl font-bold mono ${stats.netWorth >= 0 ? 'text-money' : 'text-expense'}`}>
+                  {formatCurrency(stats.netWorth)}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Total Added:</span>
+                <span className="font-medium text-income">{formatCurrency(stats.totalAdded)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">– Expenses:</span>
+                <span className="font-medium text-expense">{formatCurrency(stats.totalExpenses)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">– Investments:</span>
+                <span className="font-medium text-investment">{formatCurrency(stats.totalInvestmentCost)}</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard
@@ -120,7 +182,7 @@ export function MoneyPage() {
         />
         <StatCard
           title="Total Spent"
-          value={formatCurrency(stats.totalSpent)}
+          value={formatCurrency(stats.totalSpent + stats.totalExpenses)}
           icon={TrendingDown}
           colorClass="text-expense"
         />
