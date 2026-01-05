@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wallet, Plus, Edit2, Trash2, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building, FileText, RefreshCw, Download, DollarSign } from 'lucide-react';
+import { Wallet, Plus, Edit2, Trash2, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building, FileText, RefreshCw, Download, DollarSign, Target } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { IncomeSection } from '@/components/money/IncomeSection';
 import { LoansSection } from '@/components/money/LoansSection';
 import { ReportsSection } from '@/components/money/ReportsSection';
 import { IPSection } from '@/components/money/IPSection';
+import { GoalsSection } from '@/components/money/GoalsSection';
 import { getWallet, getExpenses, getInvestments, getIncomes, getLoans, getIPs, resetAllData, calculateNetWorth, getNetWorthLog } from '@/lib/storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -224,6 +225,9 @@ export function MoneyPage() {
           <TabsTrigger value="loans" className="gap-2 data-[state=active]:bg-founder data-[state=active]:text-primary-foreground">
             <Building size={14} /> Loans
           </TabsTrigger>
+          <TabsTrigger value="goals" className="gap-2 data-[state=active]:bg-investment data-[state=active]:text-primary-foreground">
+            <Target size={14} /> Goals
+          </TabsTrigger>
           <TabsTrigger value="ip" className="gap-2 data-[state=active]:bg-daily data-[state=active]:text-primary-foreground">
             <FileText size={14} /> IP
           </TabsTrigger>
@@ -246,6 +250,9 @@ export function MoneyPage() {
         </TabsContent>
         <TabsContent value="loans">
           <LoansSection onUpdate={loadStats} />
+        </TabsContent>
+        <TabsContent value="goals">
+          <GoalsSection onUpdate={loadStats} />
         </TabsContent>
         <TabsContent value="ip">
           <IPSection onUpdate={loadStats} />

@@ -223,3 +223,16 @@ export interface Insight {
 export interface AppSettings {
   otherCategoryName: string;
 }
+
+// Savings Goal Types
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline: string;
+  category: 'emergency' | 'vacation' | 'purchase' | 'education' | 'retirement' | 'other';
+  description?: string;
+  createdAt: string;
+  isCompleted: boolean;
+}
