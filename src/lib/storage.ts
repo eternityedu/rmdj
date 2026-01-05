@@ -1,4 +1,4 @@
-import { WalletEntry, Expense, Investment, Income, Loan, IntellectualProperty, Skill, Note, Company, VisionItem, DailyOverview, WeeklyReview, DailyTask, SkillTask, PomodoroSession, AppSettings } from '@/types';
+import { WalletEntry, Expense, Investment, Income, Loan, IntellectualProperty, Skill, Note, Company, VisionItem, DailyOverview, WeeklyReview, DailyTask, SkillTask, PomodoroSession, AppSettings, NetWorthLog } from '@/types';
 
 const STORAGE_KEYS = {
   wallet: 'rmdj_wallet',
@@ -19,6 +19,7 @@ const STORAGE_KEYS = {
   settings: 'rmdj_settings',
   tasks: 'rmdj_tasks',
   goals: 'rmdj_goals',
+  netWorthLog: 'rmdj_net_worth_log',
 };
 
 // Generic storage functions
@@ -257,6 +258,14 @@ const defaultSettings: AppSettings = {
 export const getSettings = (): AppSettings => getObjectFromStorage(STORAGE_KEYS.settings, defaultSettings);
 export const saveSettings = (settings: AppSettings) => saveObjectToStorage(STORAGE_KEYS.settings, settings);
 
+// Net Worth Log
+export const getNetWorthLog = (): NetWorthLog[] => getFromStorage(STORAGE_KEYS.netWorthLog, []);
+export const saveNetWorthLog = (data: NetWorthLog[]) => saveToStorage(STORAGE_KEYS.netWorthLog, data);
+export const addNetWorthLogEntry = (entry: NetWorthLog) => {
+  const log = getNetWorthLog();
+  saveNetWorthLog([...log, entry]);
+};
+
 // Reset all data
 export const resetAllData = () => {
   Object.values(STORAGE_KEYS).forEach(key => {
@@ -264,35 +273,70 @@ export const resetAllData = () => {
   });
 };
 
-// Calculate net worth
+// Calculate net worth - total money added minus all expenses and investment costs
 export const calculateNetWorth = () => {
   const wallet = getWallet();
+  const expenses = getExpenses();
   const investments = getInvestments();
+  const ips = getIPs();
   const loans = getLoans();
 
-  const walletBalance = wallet.reduce((acc, entry) => {
-    return entry.type === 'added' ? acc + entry.amount : acc - entry.amount;
+  // Total money added to wallet
+  const walletAdded = wallet
+    .filter(w => w.type === 'added')
+    .reduce((acc, w) => acc + w.amount, 0);
+
+  // Total spent from wallet entries
+  const walletSpent = wallet
+    .filter(w => w.type === 'spent')
+    .reduce((acc, w) => acc + w.amount, 0);
+
+  // Total expenses
+  const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
+
+  // Total investment costs (money put into investments)
+  const totalInvestmentCosts = investments.reduce((acc, inv) => {
+    switch (inv.type) {
+      case 'stocks': return acc + (inv.quantity || 0) * (inv.buyPrice || 0);
+      case 'property': return acc + (inv.buyValue || 0);
+      case 'crypto': return acc + (inv.cryptoQuantity || 0) * (inv.cryptoBuyPrice || 0);
+      case 'gold': return acc + (inv.amountInvested || 0);
+      case 'silver': return acc + (inv.silverAmount || 0);
+      case 'sip': return acc + (inv.monthlyAmount || 0) * 12;
+      default: return acc;
+    }
   }, 0);
 
-  const investmentValue = investments.reduce((acc, inv) => {
-    if (inv.type === 'stocks') {
-      return acc + (inv.quantity || 0) * (inv.currentPrice || 0);
-    }
-    if (inv.type === 'property') {
-      return acc + (inv.currentValue || 0);
-    }
-    if (inv.type === 'gold') {
-      return acc + (inv.amountInvested || 0);
-    }
-    if (inv.type === 'sip') {
-      return acc + (inv.monthlyAmount || 0) * 12;
-    }
-    return acc + (inv.amountInvested || inv.silverAmount || 0);
-  }, 0);
+  // Total IP costs
+  const totalIPCosts = ips.reduce((acc, ip) => acc + ip.costToBuy, 0);
 
+  // Total loan remaining
   const totalLoans = loans.reduce((acc, loan) => acc + loan.remainingBalance, 0);
 
-  return walletBalance + investmentValue - totalLoans;
+  // Net Worth = Total Added - Wallet Spent - Expenses - Investment Costs - IP Costs - Loans
+  return walletAdded - walletSpent - totalExpenses - totalInvestmentCosts - totalIPCosts - totalLoans;
+};
+
+// Get investment current value (not cost)
+export const getInvestmentCurrentValue = () => {
+  const investments = getInvestments();
+  return investments.reduce((acc, inv) => {
+    switch (inv.type) {
+      case 'stocks': return acc + (inv.quantity || 0) * (inv.currentPrice || 0);
+      case 'property': return acc + (inv.currentValue || 0);
+      case 'crypto': return acc + (inv.cryptoQuantity || 0) * (inv.cryptoCurrentPrice || 0);
+      case 'gold': return acc + (inv.amountInvested || 0);
+      case 'silver': return acc + (inv.silverAmount || 0);
+      case 'sip': return acc + (inv.monthlyAmount || 0) * 12;
+      default: return acc;
+    }
+  }, 0);
+};
+
+// Update daily task
+export const updateDailyTask = (id: string, task: Partial<DailyTask>) => {
+  const tasks = getDailyTasks();
+  saveDailyTasks(tasks.map(t => t.id === id ? { ...t, ...task } : t));
 };
 
 // Generate ID

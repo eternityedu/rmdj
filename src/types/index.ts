@@ -159,6 +159,21 @@ export interface DailyTask {
   priority: 'high' | 'medium' | 'low';
   category: string;
   date: string;
+  isEveryday?: boolean;
+  duration?: 'single' | 'week' | 'month';
+  startDate?: string;
+  endDate?: string;
+}
+
+// Net Worth Transaction Log
+export interface NetWorthLog {
+  id: string;
+  date: string;
+  type: 'income' | 'expense' | 'investment';
+  description: string;
+  amount: number;
+  previousNetWorth: number;
+  newNetWorth: number;
 }
 
 // Companies Types
