@@ -1,4 +1,4 @@
-import { WalletEntry, Expense, Investment, Income, Loan, IntellectualProperty, Skill, Note, Company, VisionItem, DailyOverview, WeeklyReview, DailyTask, SkillTask, PomodoroSession, AppSettings, NetWorthLog } from '@/types';
+import { WalletEntry, Expense, Investment, Income, Loan, IntellectualProperty, Skill, Note, Company, VisionItem, DailyOverview, WeeklyReview, DailyTask, SkillTask, PomodoroSession, AppSettings, NetWorthLog, SavingsGoal } from '@/types';
 
 const STORAGE_KEYS = {
   wallet: 'rmdj_wallet',
@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
   tasks: 'rmdj_tasks',
   goals: 'rmdj_goals',
   netWorthLog: 'rmdj_net_worth_log',
+  savingsGoals: 'rmdj_savings_goals',
 };
 
 // Generic storage functions
@@ -264,6 +265,22 @@ export const saveNetWorthLog = (data: NetWorthLog[]) => saveToStorage(STORAGE_KE
 export const addNetWorthLogEntry = (entry: NetWorthLog) => {
   const log = getNetWorthLog();
   saveNetWorthLog([...log, entry]);
+};
+
+// Savings Goals
+export const getSavingsGoals = (): SavingsGoal[] => getFromStorage(STORAGE_KEYS.savingsGoals, []);
+export const saveSavingsGoals = (data: SavingsGoal[]) => saveToStorage(STORAGE_KEYS.savingsGoals, data);
+export const addSavingsGoal = (goal: SavingsGoal) => {
+  const goals = getSavingsGoals();
+  saveSavingsGoals([...goals, goal]);
+};
+export const updateSavingsGoal = (id: string, goal: Partial<SavingsGoal>) => {
+  const goals = getSavingsGoals();
+  saveSavingsGoals(goals.map(g => g.id === id ? { ...g, ...goal } : g));
+};
+export const deleteSavingsGoal = (id: string) => {
+  const goals = getSavingsGoals();
+  saveSavingsGoals(goals.filter(g => g.id !== id));
 };
 
 // Reset all data
