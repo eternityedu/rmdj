@@ -1,538 +1,161 @@
-import { useState, useEffect } from 'react';
-import { Brain, Plus, Edit2, BookOpen, Clock, Target, ExternalLink, CheckCircle2, Circle, Trash2, ListTodo, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Brain, Plus, X, Edit2, Check, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/ui/empty-state';
-import { getSkills, saveSkills, generateId, getSkillTasks, addSkillTask, toggleSkillTask, deleteSkillTask, getSettings, saveSettings } from '@/lib/storage';
-import { Skill, SkillTask } from '@/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useUserSkills } from '@/hooks/useUserSkills';
+import { toast } from 'sonner';
 
 export function SkillsPage() {
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [skillTasks, setSkillTasks] = useState<SkillTask[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [newTaskInput, setNewTaskInput] = useState<Record<string, string>>({});
-  const [openTasksSkill, setOpenTasksSkill] = useState<string | null>(null);
-  const [settings, setSettings] = useState(getSettings());
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    category: 'coding' as Skill['category'],
-    level: '0',
-    timeSpentToday: '0',
-    totalHours: '0',
-    tags: '',
-    notes: '',
-    resourceLink: '',
-    isCurrentlyLearning: false,
-  });
+  const { skills, loading, addSkill, updateSkill, deleteSkill } = useUserSkills();
+  const [newSkill, setNewSkill] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
-  const categories = [
-    { value: 'robotics', label: 'Robotics', color: 'text-investment' },
-    { value: 'automation', label: 'Automation', color: 'text-founder' },
-    { value: 'coding', label: 'Coding/CS50', color: 'text-skills' },
-    { value: 'ai-ml', label: 'AI & ML', color: 'text-primary' },
-    { value: 'math', label: 'Math', color: 'text-notes' },
-    { value: 'physics', label: 'Physics', color: 'text-daily' },
-    { value: 'chemistry', label: 'Chemistry', color: 'text-expense' },
-    { value: 'business', label: 'Business', color: 'text-income' },
-    { value: 'communication', label: 'Communication', color: 'text-muted-foreground' },
-    { value: 'other', label: settings.otherCategoryName, color: 'text-founder' },
-  ];
-
-  const categoryColors: Record<string, string> = {
-    robotics: 'bg-investment/20 text-investment border-investment/30',
-    automation: 'bg-founder/20 text-founder border-founder/30',
-    coding: 'bg-skills/20 text-skills border-skills/30',
-    'ai-ml': 'bg-primary/20 text-primary border-primary/30',
-    math: 'bg-notes/20 text-notes border-notes/30',
-    physics: 'bg-daily/20 text-daily border-daily/30',
-    chemistry: 'bg-expense/20 text-expense border-expense/30',
-    business: 'bg-income/20 text-income border-income/30',
-    communication: 'bg-muted text-muted-foreground border-muted',
-    other: 'bg-founder/20 text-founder border-founder/30',
-  };
-
-  useEffect(() => {
-    loadSkills();
-    loadSkillTasks();
-    setSettings(getSettings());
-  }, []);
-
-  const loadSkills = () => {
-    setSkills(getSkills());
-  };
-
-  const loadSkillTasks = () => {
-    setSkillTasks(getSkillTasks());
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const skillData: Skill = {
-      id: editingSkill?.id || generateId(),
-      name: form.name,
-      category: form.category,
-      level: parseInt(form.level) || 0,
-      timeSpentToday: parseInt(form.timeSpentToday) || 0,
-      totalHours: parseFloat(form.totalHours) || 0,
-      tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
-      notes: form.notes,
-      resourceLink: form.resourceLink,
-      isCurrentlyLearning: form.isCurrentlyLearning,
-      weeklyHours: editingSkill?.weeklyHours || [0, 0, 0, 0, 0, 0, 0],
-      lastUpdated: new Date().toISOString(),
-    };
-
-    if (editingSkill) {
-      const updated = skills.map(s => s.id === editingSkill.id ? skillData : s);
-      saveSkills(updated);
-    } else {
-      saveSkills([...skills, skillData]);
+  const handleAddSkill = async () => {
+    if (!newSkill.trim()) return;
+    
+    setIsAdding(true);
+    const { error } = await addSkill(newSkill.trim());
+    setIsAdding(false);
+    
+    if (!error) {
+      setNewSkill('');
+      toast.success('Skill added!');
     }
-
-    loadSkills();
-    resetForm();
   };
 
-  const resetForm = () => {
-    setForm({
-      name: '',
-      category: 'coding',
-      level: '0',
-      timeSpentToday: '0',
-      totalHours: '0',
-      tags: '',
-      notes: '',
-      resourceLink: '',
-      isCurrentlyLearning: false,
-    });
-    setEditingSkill(null);
-    setIsOpen(false);
+  const handleUpdateSkill = async (id: string) => {
+    if (!editingName.trim()) return;
+    
+    const { error } = await updateSkill(id, editingName.trim());
+    if (!error) {
+      setEditingId(null);
+      setEditingName('');
+      toast.success('Skill updated!');
+    }
   };
 
-  const handleEdit = (skill: Skill) => {
-    setEditingSkill(skill);
-    setForm({
-      name: skill.name,
-      category: skill.category,
-      level: skill.level.toString(),
-      timeSpentToday: skill.timeSpentToday.toString(),
-      totalHours: skill.totalHours.toString(),
-      tags: skill.tags.join(', '),
-      notes: skill.notes,
-      resourceLink: skill.resourceLink || '',
-      isCurrentlyLearning: skill.isCurrentlyLearning,
-    });
-    setIsOpen(true);
+  const handleDeleteSkill = async (id: string) => {
+    const { error } = await deleteSkill(id);
+    if (!error) {
+      toast.success('Skill removed!');
+    }
   };
 
-  const updateTimeSpent = (skillId: string, minutes: number) => {
-    const updated = skills.map(s => {
-      if (s.id === skillId) {
-        return {
-          ...s,
-          timeSpentToday: s.timeSpentToday + minutes,
-          totalHours: s.totalHours + minutes / 60,
-          lastUpdated: new Date().toISOString(),
-        };
-      }
-      return s;
-    });
-    saveSkills(updated);
-    loadSkills();
+  const startEditing = (id: string, name: string) => {
+    setEditingId(id);
+    setEditingName(name);
   };
 
-  const handleAddTask = (skillId: string) => {
-    const taskTitle = newTaskInput[skillId]?.trim();
-    if (!taskTitle) return;
-
-    addSkillTask({
-      id: generateId(),
-      skillId,
-      title: taskTitle,
-      completed: false,
-      createdAt: new Date().toISOString(),
-    });
-
-    setNewTaskInput({ ...newTaskInput, [skillId]: '' });
-    loadSkillTasks();
-  };
-
-  const handleToggleTask = (taskId: string) => {
-    toggleSkillTask(taskId);
-    loadSkillTasks();
-  };
-
-  const handleDeleteTask = (taskId: string) => {
-    deleteSkillTask(taskId);
-    loadSkillTasks();
-  };
-
-  const getTasksForSkill = (skillId: string) => {
-    return skillTasks.filter(t => t.skillId === skillId);
-  };
-
-  const handleSaveSettings = () => {
-    saveSettings(settings);
-    setIsSettingsOpen(false);
-  };
-
-  const filteredSkills = selectedCategory === 'all' 
-    ? skills 
-    : skills.filter(s => s.category === selectedCategory);
-
-  const learningSkills = skills.filter(s => s.isCurrentlyLearning);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
       <PageHeader
         title="Skills"
-        description="Track your learning journey"
+        description="Your custom skill tags"
         icon={Brain}
         iconColor="text-skills"
-        action={
-          <div className="flex gap-2">
-            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Settings size={16} />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-[95vw] sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Category Settings</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Rename "Other" Category</Label>
-                    <Input
-                      value={settings.otherCategoryName}
-                      onChange={e => setSettings({ ...settings, otherCategoryName: e.target.value })}
-                      placeholder="Other"
-                    />
-                  </div>
-                  <Button onClick={handleSaveSettings} className="w-full">Save</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-2">
-                  <Plus size={16} />
-                  Add Skill
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingSkill ? 'Edit Skill' : 'Add Skill'}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label>Skill Name</Label>
-                    <Input
-                      value={form.name}
-                      onChange={e => setForm({ ...form, name: e.target.value })}
-                      placeholder="e.g., Python Programming"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Category</Label>
-                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as Skill['category'] })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(cat => (
-                          <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Skill Level: {form.level}%</Label>
-                    <Input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={form.level}
-                      onChange={e => setForm({ ...form, level: e.target.value })}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Today (mins)</Label>
-                      <Input
-                        type="number"
-                        value={form.timeSpentToday}
-                        onChange={e => setForm({ ...form, timeSpentToday: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <Label>Total Hours</Label>
-                      <Input
-                        type="number"
-                        step="0.5"
-                        value={form.totalHours}
-                        onChange={e => setForm({ ...form, totalHours: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Tags (comma separated)</Label>
-                    <Input
-                      value={form.tags}
-                      onChange={e => setForm({ ...form, tags: e.target.value })}
-                      placeholder="e.g., MIT, priority, daily"
-                    />
-                  </div>
-                  <div>
-                    <Label>Resource Link</Label>
-                    <Input
-                      type="url"
-                      value={form.resourceLink}
-                      onChange={e => setForm({ ...form, resourceLink: e.target.value })}
-                      placeholder="https://..."
-                    />
-                  </div>
-                  <div>
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={form.notes}
-                      onChange={e => setForm({ ...form, notes: e.target.value })}
-                      placeholder="Learning notes..."
-                      rows={3}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label>Currently Learning</Label>
-                    <Switch
-                      checked={form.isCurrentlyLearning}
-                      onCheckedChange={(checked) => setForm({ ...form, isCurrentlyLearning: checked })}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">
-                    {editingSkill ? 'Update Skill' : 'Add Skill'}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        }
       />
 
-      {/* Currently Learning */}
-      {learningSkills.length > 0 && (
-        <Card className="border-skills/20 bg-skills/5">
+      {/* Add Skill Input */}
+      <Card className="border-skills/20">
+        <CardContent className="p-4">
+          <div className="flex gap-2">
+            <Input
+              value={newSkill}
+              onChange={(e) => setNewSkill(e.target.value)}
+              placeholder="Add a new skill..."
+              onKeyDown={(e) => e.key === 'Enter' && handleAddSkill()}
+              className="flex-1"
+            />
+            <Button onClick={handleAddSkill} disabled={isAdding || !newSkill.trim()} className="gap-2">
+              {isAdding ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+              Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Skills Display */}
+      {skills.length === 0 ? (
+        <EmptyState
+          icon={Brain}
+          title="No skills yet"
+          description="Add your custom skills to track your expertise"
+          actionLabel="Add Your First Skill"
+          onAction={() => document.querySelector('input')?.focus()}
+        />
+      ) : (
+        <Card className="border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <BookOpen size={16} className="text-skills" />
-              Currently Learning
+              <Brain size={16} className="text-skills" />
+              Your Skills ({skills.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {learningSkills.map(skill => (
+              {skills.map((skill) => (
                 <div
                   key={skill.id}
-                  className="px-3 py-1.5 rounded-full bg-skills/10 border border-skills/30 text-sm flex items-center gap-2"
+                  className="group flex items-center gap-2 px-3 py-2 rounded-full bg-skills/10 border border-skills/30 text-sm transition-all hover:bg-skills/20"
                 >
-                  <span>{skill.name}</span>
-                  <span className="text-skills mono text-xs">{skill.level}%</span>
+                  {editingId === skill.id ? (
+                    <>
+                      <Input
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        className="h-6 w-32 px-2 text-sm"
+                        autoFocus
+                        onKeyDown={(e) => e.key === 'Enter' && handleUpdateSkill(skill.id)}
+                      />
+                      <button
+                        onClick={() => handleUpdateSkill(skill.id)}
+                        className="p-1 rounded hover:bg-skills/30"
+                      >
+                        <Check size={14} className="text-income" />
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="p-1 rounded hover:bg-skills/30"
+                      >
+                        <X size={14} className="text-muted-foreground" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-foreground">{skill.name}</span>
+                      <button
+                        onClick={() => startEditing(skill.id, skill.name)}
+                        className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-skills/30"
+                      >
+                        <Edit2 size={12} className="text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSkill(skill.id)}
+                        className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-expense/30"
+                      >
+                        <X size={12} className="text-expense" />
+                      </button>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
-
-      {/* Category Filter */}
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-        <TabsList className="w-full overflow-x-auto flex gap-1 bg-transparent p-0 no-scrollbar">
-          <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            All
-          </TabsTrigger>
-          {categories.map(cat => (
-            <TabsTrigger 
-              key={cat.value} 
-              value={cat.value}
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              {cat.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value={selectedCategory} className="mt-4">
-          {filteredSkills.length === 0 ? (
-            <EmptyState
-              icon={Brain}
-              title="No skills yet"
-              description="Start tracking your learning journey. Add your first skill."
-              actionLabel="Add Skill"
-              onAction={() => setIsOpen(true)}
-            />
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredSkills.map((skill) => {
-                const tasks = getTasksForSkill(skill.id);
-                const completedTasks = tasks.filter(t => t.completed).length;
-                
-                return (
-                  <Card key={skill.id} className={`border-border/50 hover:border-skills/30 transition-colors ${skill.isCurrentlyLearning ? 'ring-1 ring-skills/30' : ''}`}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            {skill.name}
-                            {skill.isCurrentlyLearning && (
-                              <span className="w-2 h-2 rounded-full bg-skills animate-pulse" />
-                            )}
-                          </CardTitle>
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs mt-1 border ${categoryColors[skill.category]}`}>
-                            {categories.find(c => c.value === skill.category)?.label}
-                          </span>
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(skill)}>
-                          <Edit2 size={14} />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {/* Progress */}
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-muted-foreground">Skill Level</span>
-                          <span className="font-medium text-skills mono">{skill.level}%</span>
-                        </div>
-                        <Progress value={skill.level} className="h-2" />
-                      </div>
-
-                      {/* Time Stats */}
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="p-2 rounded-lg bg-muted/30 flex items-center gap-2">
-                          <Clock size={14} className="text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">Today</p>
-                            <p className="font-medium mono">{skill.timeSpentToday}m</p>
-                          </div>
-                        </div>
-                        <div className="p-2 rounded-lg bg-muted/30 flex items-center gap-2">
-                          <Target size={14} className="text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">Total</p>
-                            <p className="font-medium mono">{skill.totalHours.toFixed(1)}h</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Quick Add Time */}
-                      <div className="flex gap-1">
-                        {[15, 30, 60].map(mins => (
-                          <Button
-                            key={mins}
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 text-xs"
-                            onClick={() => updateTimeSpent(skill.id, mins)}
-                          >
-                            +{mins}m
-                          </Button>
-                        ))}
-                      </div>
-
-                      {/* Learning Tasks */}
-                      <Collapsible open={openTasksSkill === skill.id} onOpenChange={(open) => setOpenTasksSkill(open ? skill.id : null)}>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="w-full justify-between text-xs">
-                            <span className="flex items-center gap-2">
-                              <ListTodo size={14} />
-                              Learning Tasks ({completedTasks}/{tasks.length})
-                            </span>
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-2 space-y-2">
-                          {/* Task List */}
-                          {tasks.map(task => (
-                            <div key={task.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
-                              <button onClick={() => handleToggleTask(task.id)} className="flex-shrink-0">
-                                {task.completed ? (
-                                  <CheckCircle2 size={16} className="text-income" />
-                                ) : (
-                                  <Circle size={16} className="text-muted-foreground" />
-                                )}
-                              </button>
-                              <span className={`flex-1 text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                                {task.title}
-                              </span>
-                              <button onClick={() => handleDeleteTask(task.id)} className="text-expense/70 hover:text-expense">
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          ))}
-                          
-                          {/* Add Task Input */}
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Add learning task..."
-                              value={newTaskInput[skill.id] || ''}
-                              onChange={e => setNewTaskInput({ ...newTaskInput, [skill.id]: e.target.value })}
-                              onKeyPress={e => e.key === 'Enter' && handleAddTask(skill.id)}
-                              className="h-8 text-sm"
-                            />
-                            <Button size="sm" className="h-8" onClick={() => handleAddTask(skill.id)}>
-                              <Plus size={14} />
-                            </Button>
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-
-                      {/* Tags */}
-                      {skill.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {skill.tags.map((tag, i) => (
-                            <span key={i} className="px-2 py-0.5 rounded-full bg-muted text-xs text-muted-foreground">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Resource Link */}
-                      {skill.resourceLink && (
-                        <a
-                          href={skill.resourceLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-primary hover:underline"
-                        >
-                          <ExternalLink size={12} />
-                          Resource Link
-                        </a>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }

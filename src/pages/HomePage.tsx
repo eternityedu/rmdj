@@ -1,85 +1,39 @@
 import { useState, useEffect } from 'react';
-import { Home, TrendingUp, TrendingDown, Wallet, Brain, Building2, AlertCircle, Crown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Home, TrendingUp, TrendingDown, Brain, Building2, AlertCircle, Crown, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getWallet, getExpenses, getInvestments, getLoans, getSkills, getCompanies, calculateNetWorth } from '@/lib/storage';
+import { useFinancialEntries } from '@/hooks/useFinancialEntries';
+import { useUserSkills } from '@/hooks/useUserSkills';
 import { format } from 'date-fns';
 
 export function HomePage() {
-  const [stats, setStats] = useState({
-    netWorth: 0,
-    walletBalance: 0,
-    totalInvestments: 0,
-    totalLoans: 0,
-    monthlyIncome: 0,
-    monthlyExpenses: 0,
-    skillsLearning: 0,
-    companiesActive: 0,
-  });
+  const { entries, stats, loading: moneyLoading } = useFinancialEntries();
+  const { skills, loading: skillsLoading } = useUserSkills();
   const [insights, setInsights] = useState<Array<{ id: string; message: string; type: 'up' | 'down' | 'neutral' }>>([]);
 
   useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadStats = () => {
-    const wallet = getWallet();
-    const expenses = getExpenses();
-    const investments = getInvestments();
-    const loans = getLoans();
-    const skills = getSkills();
-    const companies = getCompanies();
-
-    const walletBalance = wallet.reduce((acc, entry) => {
-      return entry.type === 'added' ? acc + entry.amount : acc - entry.amount;
-    }, 0);
-
-    const currentMonth = format(new Date(), 'yyyy-MM');
-    const monthlyExpenses = expenses
-      .filter(e => e.date.startsWith(currentMonth))
-      .reduce((acc, e) => acc + e.amount, 0);
-
-    const monthlyIncome = wallet
-      .filter(w => w.type === 'added' && w.date.startsWith(currentMonth))
-      .reduce((acc, w) => acc + w.amount, 0);
-
-    const totalInvestments = investments.reduce((acc, inv) => {
-      if (inv.type === 'stocks') return acc + (inv.quantity || 0) * (inv.currentPrice || 0);
-      if (inv.type === 'property') return acc + (inv.currentValue || 0);
-      if (inv.type === 'sip') return acc + (inv.monthlyAmount || 0) * 12;
-      return acc + (inv.amountInvested || inv.silverAmount || 0);
-    }, 0);
-
-    const totalLoans = loans.reduce((acc, loan) => acc + loan.remainingBalance, 0);
-
     // Generate insights
     const newInsights = [];
-    if (monthlyExpenses > monthlyIncome * 0.8) {
-      newInsights.push({ id: '1', message: 'Spending is high this month - watch your expenses', type: 'down' as const });
+    
+    if (stats.totalExpenses > stats.totalIncome * 0.8 && stats.totalIncome > 0) {
+      newInsights.push({ id: '1', message: 'Spending is high - watch your expenses', type: 'down' as const });
     }
-    if (skills.filter(s => s.isCurrentlyLearning).length > 0) {
-      newInsights.push({ id: '2', message: `${skills.filter(s => s.isCurrentlyLearning).length} skills in active learning`, type: 'up' as const });
+    
+    if (skills.length > 0) {
+      newInsights.push({ id: '2', message: `${skills.length} skills tracked`, type: 'up' as const });
     }
-    if (walletBalance < 10000) {
-      newInsights.push({ id: '3', message: 'Wallet balance is below average', type: 'neutral' as const });
+    
+    if (stats.netWorth < 10000 && entries.length > 0) {
+      newInsights.push({ id: '3', message: 'Net worth is below average', type: 'neutral' as const });
     }
-    if (companies.filter(c => c.status === 'building' || c.status === 'launched').length > 0) {
-      newInsights.push({ id: '4', message: 'Companies progressing well', type: 'up' as const });
+    
+    if (stats.totalInvestments > 0) {
+      newInsights.push({ id: '4', message: 'Investments are growing', type: 'up' as const });
     }
 
     setInsights(newInsights);
-    setStats({
-      netWorth: calculateNetWorth(),
-      walletBalance,
-      totalInvestments,
-      totalLoans,
-      monthlyIncome,
-      monthlyExpenses,
-      skillsLearning: skills.filter(s => s.isCurrentlyLearning).length,
-      companiesActive: companies.filter(c => c.status !== 'idea').length,
-    });
-  };
+  }, [stats, skills, entries]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -88,6 +42,23 @@ export function HomePage() {
       maximumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (moneyLoading || skillsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  // Calculate current month stats
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const monthlyIncome = entries
+    .filter(e => e.entry_type === 'income' && e.date.startsWith(currentMonth))
+    .reduce((acc, e) => acc + Number(e.amount), 0);
+  const monthlyExpenses = entries
+    .filter(e => e.entry_type === 'expense' && e.date.startsWith(currentMonth))
+    .reduce((acc, e) => acc + Number(e.amount), 0);
 
   return (
     <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
@@ -110,7 +81,7 @@ export function HomePage() {
                 <span className={stats.netWorth >= 0 ? 'text-income' : 'text-expense'}>
                   {stats.netWorth >= 0 ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                 </span>
-                <span className="text-sm text-muted-foreground">Assets - Liabilities</span>
+                <span className="text-sm text-muted-foreground">Total Added - Total Spent</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -124,32 +95,32 @@ export function HomePage() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          title="Wallet Balance"
-          value={formatCurrency(stats.walletBalance)}
-          icon={Wallet}
-          colorClass="text-money"
-          trend={stats.walletBalance > 0 ? 'up' : 'down'}
-          trendValue="Available funds"
-        />
-        <StatCard
-          title="Investments"
-          value={formatCurrency(stats.totalInvestments)}
+          title="Total Added"
+          value={formatCurrency(stats.totalAdded)}
           icon={TrendingUp}
-          colorClass="text-investment"
+          colorClass="text-income"
           trend="up"
-          trendValue="Total portfolio"
+          trendValue="All income"
         />
         <StatCard
-          title="Skills Learning"
-          value={stats.skillsLearning}
-          subtitle="Currently active"
+          title="Total Spent"
+          value={formatCurrency(stats.totalSpent)}
+          icon={TrendingDown}
+          colorClass="text-expense"
+          trend="down"
+          trendValue="All outflows"
+        />
+        <StatCard
+          title="Skills"
+          value={skills.length}
+          subtitle="Tracked"
           icon={Brain}
           colorClass="text-skills"
         />
         <StatCard
-          title="Companies"
-          value={stats.companiesActive}
-          subtitle="In progress"
+          title="Entries"
+          value={entries.length}
+          subtitle="Financial records"
           icon={Building2}
           colorClass="text-investment"
         />
@@ -161,11 +132,11 @@ export function HomePage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <TrendingUp size={16} className="text-income" />
-              Monthly Income
+              Income
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <p className="text-xl lg:text-3xl font-bold text-income mono">{formatCurrency(stats.monthlyIncome)}</p>
+            <p className="text-xl lg:text-3xl font-bold text-income mono">{formatCurrency(monthlyIncome)}</p>
             <p className="text-sm text-muted-foreground mt-1">{format(new Date(), 'MMMM yyyy')}</p>
           </CardContent>
         </Card>
@@ -174,11 +145,11 @@ export function HomePage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <TrendingDown size={16} className="text-expense" />
-              Monthly Expenses
+              Expenses
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <p className="text-xl lg:text-3xl font-bold text-expense mono">{formatCurrency(stats.monthlyExpenses)}</p>
+            <p className="text-xl lg:text-3xl font-bold text-expense mono">{formatCurrency(monthlyExpenses)}</p>
             <p className="text-sm text-muted-foreground mt-1">{format(new Date(), 'MMMM yyyy')}</p>
           </CardContent>
         </Card>

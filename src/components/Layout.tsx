@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, Building2, Brain, Wallet, StickyNote, Calendar, Crown, 
-  Menu, X, ChevronRight
+  Menu, X, ChevronRight, LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BottomNav } from '@/components/BottomNav';
-import { RemindersPanel } from '@/components/RemindersPanel';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home', color: 'text-primary' },
@@ -25,6 +27,12 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { signOut, user } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out successfully');
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -37,7 +45,9 @@ export function Layout({ children }: LayoutProps) {
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
         <span className="font-semibold text-base gradient-text">RMDJ Hub</span>
-        <RemindersPanel />
+        <Button variant="ghost" size="icon" onClick={handleSignOut} className="min-w-[44px] min-h-[44px]">
+          <LogOut size={18} />
+        </Button>
       </header>
 
       {/* Sidebar Overlay */}
@@ -65,9 +75,9 @@ export function Layout({ children }: LayoutProps) {
                 <p className="text-[10px] text-muted-foreground">Founder Dashboard</p>
               </div>
             </div>
-            <div className="hidden lg:block">
-              <RemindersPanel />
-            </div>
+            <Button variant="ghost" size="icon" onClick={handleSignOut} className="hidden lg:flex">
+              <LogOut size={16} />
+            </Button>
           </div>
 
           {/* Navigation */}
@@ -110,8 +120,8 @@ export function Layout({ children }: LayoutProps) {
           {/* Footer */}
           <div className="p-4 border-t border-sidebar-border">
             <div className="glass-effect rounded-lg p-3">
-              <p className="text-xs text-muted-foreground">Solo Founder Mode</p>
-              <p className="text-xs text-primary mt-1">MIT • S.I.D.S • RMDJ</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              <p className="text-xs text-primary mt-1">Cloud Synced</p>
             </div>
           </div>
         </div>
