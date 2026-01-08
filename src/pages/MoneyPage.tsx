@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Wallet, Plus, TrendingUp, TrendingDown, PiggyBank, CreditCard, Target, Building, FileText, Edit2, Trash2, Loader2, Filter, DollarSign } from 'lucide-react';
+import { Wallet, Plus, TrendingUp, TrendingDown, PiggyBank, CreditCard, Target, Building, FileText, Edit2, Trash2, Loader2, Filter, DollarSign, Download, Calendar } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useFinancialEntries, FinancialEntry } from '@/hooks/useFinancialEntries';
 import { toast } from 'sonner';
-import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, subMonths, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar } from 'recharts';
+import jsPDF from 'jspdf';
 
 const entryTypes = [
   { value: 'income', label: 'Income', color: 'text-income', bgColor: 'bg-income' },
@@ -30,11 +31,16 @@ const generalCategories = ['Personal', 'Business', 'Emergency', 'Other'];
 
 const COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'];
 
+type TimeRange = '1m' | '3m' | '6m' | '1y';
+type ChartFilter = 'all' | 'income' | 'expense' | 'investment' | 'goal' | 'loan' | 'ip';
+
 export function MoneyPage() {
   const { entries, loading, stats, addEntry, updateEntry, deleteEntry, refresh } = useFinancialEntries();
   const [isOpen, setIsOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FinancialEntry | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
+  const [timeRange, setTimeRange] = useState<TimeRange>('6m');
+  const [chartFilter, setChartFilter] = useState<ChartFilter>('all');
   const [form, setForm] = useState({
     amount: '',
     entry_type: 'income' as FinancialEntry['entry_type'],
@@ -130,35 +136,198 @@ export function MoneyPage() {
     }).format(amount);
   };
 
-  // Get monthly chart data
+  // Get months count based on time range
+  const getMonthsCount = () => {
+    switch (timeRange) {
+      case '1m': return 1;
+      case '3m': return 3;
+      case '6m': return 6;
+      case '1y': return 12;
+      default: return 6;
+    }
+  };
+
+  // Get time range start date
+  const getTimeRangeStartDate = () => {
+    return startOfDay(subMonths(new Date(), getMonthsCount()));
+  };
+
+  // Filter entries by time range
+  const getFilteredEntriesByTime = () => {
+    const startDate = getTimeRangeStartDate();
+    return entries.filter(entry => {
+      const entryDate = parseISO(entry.date);
+      return isAfter(entryDate, startDate) || format(entryDate, 'yyyy-MM-dd') === format(startDate, 'yyyy-MM-dd');
+    });
+  };
+
+  // Get monthly chart data with dynamic scaling
   const getMonthlyData = () => {
+    const monthsCount = getMonthsCount();
     const months: Record<string, Record<string, number>> = {};
-    for (let i = 5; i >= 0; i--) {
+    
+    for (let i = monthsCount - 1; i >= 0; i--) {
       const date = subMonths(new Date(), i);
-      const key = format(date, 'MMM');
+      const key = format(date, 'MMM yyyy');
       months[key] = { income: 0, expense: 0, investment: 0, goal: 0, loan: 0, ip: 0 };
     }
 
-    entries.forEach(entry => {
-      const month = format(parseISO(entry.date), 'MMM');
+    getFilteredEntriesByTime().forEach(entry => {
+      const month = format(parseISO(entry.date), 'MMM yyyy');
       if (months[month]) {
         months[month][entry.entry_type] += Number(entry.amount);
       }
     });
 
-    return Object.entries(months).map(([month, data]) => ({ month, ...data }));
+    return Object.entries(months).map(([month, data]) => ({ 
+      month: month.split(' ')[0], // Just show month name
+      ...data 
+    }));
+  };
+
+  // Calculate dynamic Y-axis domain
+  const getYAxisDomain = (data: any[]) => {
+    let maxValue = 0;
+    
+    data.forEach(item => {
+      if (chartFilter === 'all') {
+        entryTypes.forEach(type => {
+          maxValue = Math.max(maxValue, item[type.value] || 0);
+        });
+      } else {
+        maxValue = Math.max(maxValue, item[chartFilter] || 0);
+      }
+    });
+
+    if (maxValue === 0) return [0, 1000];
+    
+    // Round up to a nice number
+    const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+    const normalized = maxValue / magnitude;
+    let ceiling;
+    
+    if (normalized <= 1) ceiling = 1;
+    else if (normalized <= 2) ceiling = 2;
+    else if (normalized <= 5) ceiling = 5;
+    else ceiling = 10;
+    
+    const maxDomain = ceiling * magnitude * 1.2; // Add 20% padding
+    return [0, maxDomain];
+  };
+
+  // Format Y-axis tick
+  const formatYAxisTick = (value: number) => {
+    if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+    if (value >= 1000) return `₹${(value / 1000).toFixed(0)}k`;
+    return `₹${value}`;
   };
 
   // Get income sources for pie chart
   const getIncomeSourceData = () => {
     const sources: Record<string, number> = {};
-    entries
+    getFilteredEntriesByTime()
       .filter(e => e.entry_type === 'income')
       .forEach(entry => {
         sources[entry.category] = (sources[entry.category] || 0) + Number(entry.amount);
       });
     
     return Object.entries(sources).map(([name, value]) => ({ name, value }));
+  };
+
+  // Generate PDF Report
+  const generatePDFReport = () => {
+    const doc = new jsPDF();
+    const timeRangeEntries = getFilteredEntriesByTime();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(40);
+    doc.text('Financial Report', 20, 20);
+    
+    // Time range
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const rangeLabel = timeRange === '1m' ? 'Last Month' : timeRange === '3m' ? 'Last 3 Months' : timeRange === '6m' ? 'Last 6 Months' : 'Last Year';
+    doc.text(`Period: ${rangeLabel}`, 20, 28);
+    doc.text(`Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, 20, 34);
+    
+    // Summary section
+    doc.setFontSize(14);
+    doc.setTextColor(40);
+    doc.text('Summary', 20, 48);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(60);
+    
+    // Calculate period stats
+    const periodStats = {
+      income: 0,
+      expense: 0,
+      investment: 0,
+      goal: 0,
+      loan: 0,
+      ip: 0,
+    };
+    
+    timeRangeEntries.forEach(entry => {
+      periodStats[entry.entry_type as keyof typeof periodStats] += Number(entry.amount);
+    });
+    
+    let y = 58;
+    doc.text(`Total Income: ${formatCurrency(periodStats.income)}`, 20, y);
+    doc.text(`Total Expenses: ${formatCurrency(periodStats.expense)}`, 20, y + 6);
+    doc.text(`Total Investments: ${formatCurrency(periodStats.investment)}`, 20, y + 12);
+    doc.text(`Total Goals: ${formatCurrency(periodStats.goal)}`, 20, y + 18);
+    doc.text(`Total Loans: ${formatCurrency(periodStats.loan)}`, 20, y + 24);
+    doc.text(`Total IP: ${formatCurrency(periodStats.ip)}`, 20, y + 30);
+    
+    const netFlow = periodStats.income - periodStats.expense - periodStats.investment - periodStats.goal - periodStats.loan - periodStats.ip;
+    doc.setFontSize(11);
+    doc.setTextColor(netFlow >= 0 ? 34 : 180, netFlow >= 0 ? 139 : 30, netFlow >= 0 ? 34 : 30);
+    doc.text(`Net Flow: ${formatCurrency(netFlow)}`, 20, y + 40);
+    
+    // Entries table
+    doc.setFontSize(14);
+    doc.setTextColor(40);
+    doc.text('Recent Entries', 20, y + 56);
+    
+    // Table headers
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text('Date', 20, y + 66);
+    doc.text('Type', 50, y + 66);
+    doc.text('Category', 80, y + 66);
+    doc.text('Amount', 130, y + 66);
+    doc.text('Note', 160, y + 66);
+    
+    // Table rows
+    doc.setTextColor(60);
+    let tableY = y + 74;
+    const maxEntries = Math.min(timeRangeEntries.length, 30);
+    
+    for (let i = 0; i < maxEntries; i++) {
+      const entry = timeRangeEntries[i];
+      if (tableY > 270) {
+        doc.addPage();
+        tableY = 20;
+      }
+      
+      doc.text(format(parseISO(entry.date), 'dd/MM/yy'), 20, tableY);
+      doc.text(entry.entry_type, 50, tableY);
+      doc.text(entry.category.substring(0, 15), 80, tableY);
+      doc.text(formatCurrency(Number(entry.amount)), 130, tableY);
+      doc.text((entry.note || '-').substring(0, 20), 160, tableY);
+      
+      tableY += 6;
+    }
+    
+    if (timeRangeEntries.length > maxEntries) {
+      doc.text(`... and ${timeRangeEntries.length - maxEntries} more entries`, 20, tableY + 6);
+    }
+    
+    // Save
+    doc.save(`financial-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast.success('Report downloaded!');
   };
 
   // Filter entries
@@ -176,6 +345,7 @@ export function MoneyPage() {
 
   const monthlyData = getMonthlyData();
   const incomeSourceData = getIncomeSourceData();
+  const yAxisDomain = getYAxisDomain(monthlyData);
 
   return (
     <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
@@ -185,86 +355,92 @@ export function MoneyPage() {
         icon={Wallet}
         iconColor="text-money"
         action={
-          <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-2">
-                <Plus size={16} />
-                Add Entry
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingEntry ? 'Edit Entry' : 'Add Entry'}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label>Amount *</Label>
-                  <Input
-                    type="number"
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    placeholder="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Type *</Label>
-                  <Select value={form.entry_type} onValueChange={(v) => setForm({ ...form, entry_type: v as FinancialEntry['entry_type'], category: '' })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {entryTypes.map(type => (
-                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Category *</Label>
-                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getCategories(form.entry_type).map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Source (optional)</Label>
-                  <Input
-                    value={form.source}
-                    onChange={(e) => setForm({ ...form, source: e.target.value })}
-                    placeholder="e.g., Company name, Bank"
-                  />
-                </div>
-                <div>
-                  <Label>Date *</Label>
-                  <Input
-                    type="date"
-                    value={form.date}
-                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Note (optional)</Label>
-                  <Textarea
-                    value={form.note}
-                    onChange={(e) => setForm({ ...form, note: e.target.value })}
-                    placeholder="Additional notes..."
-                    rows={2}
-                  />
-                </div>
-                <Button type="submit" className="w-full">
-                  {editingEntry ? 'Update Entry' : 'Add Entry'}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={generatePDFReport}>
+              <Download size={16} />
+              PDF
+            </Button>
+            <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-2">
+                  <Plus size={16} />
+                  Add Entry
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingEntry ? 'Edit Entry' : 'Add Entry'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label>Amount *</Label>
+                    <Input
+                      type="number"
+                      value={form.amount}
+                      onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                      placeholder="0"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Type *</Label>
+                    <Select value={form.entry_type} onValueChange={(v) => setForm({ ...form, entry_type: v as FinancialEntry['entry_type'], category: '' })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {entryTypes.map(type => (
+                          <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Category *</Label>
+                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getCategories(form.entry_type).map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Source (optional)</Label>
+                    <Input
+                      value={form.source}
+                      onChange={(e) => setForm({ ...form, source: e.target.value })}
+                      placeholder="e.g., Company name, Bank"
+                    />
+                  </div>
+                  <div>
+                    <Label>Date *</Label>
+                    <Input
+                      type="date"
+                      value={form.date}
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Note (optional)</Label>
+                    <Textarea
+                      value={form.note}
+                      onChange={(e) => setForm({ ...form, note: e.target.value })}
+                      placeholder="Additional notes..."
+                      rows={2}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full">
+                    {editingEntry ? 'Update Entry' : 'Add Entry'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         }
       />
 
@@ -300,10 +476,44 @@ export function MoneyPage() {
         <StatCard title="IP" value={formatCurrency(stats.totalIP)} icon={FileText} colorClass="text-notes" />
       </div>
 
-      {/* Monthly Overview Chart */}
+      {/* Monthly Overview Chart with Controls */}
       <Card className="border-border/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Monthly Overview</CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <CardTitle className="text-base">Monthly Overview</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              {/* Time Range Selector */}
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+                <SelectTrigger className="w-32 h-8">
+                  <Calendar size={14} className="mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1m">1 Month</SelectItem>
+                  <SelectItem value="3m">3 Months</SelectItem>
+                  <SelectItem value="6m">6 Months</SelectItem>
+                  <SelectItem value="1y">1 Year</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Chart Type Filter */}
+              <Select value={chartFilter} onValueChange={(v) => setChartFilter(v as ChartFilter)}>
+                <SelectTrigger className="w-32 h-8">
+                  <Filter size={14} className="mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="investment">Investment</SelectItem>
+                  <SelectItem value="goal">Goal</SelectItem>
+                  <SelectItem value="loan">Loan</SelectItem>
+                  <SelectItem value="ip">IP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-64">
@@ -311,18 +521,35 @@ export function MoneyPage() {
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `₹${v/1000}k`} />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={12} 
+                  tickFormatter={formatYAxisTick}
+                  domain={yAxisDomain}
+                />
                 <Tooltip 
                   contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                   formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend />
-                <Bar dataKey="income" fill="hsl(var(--income))" name="Income" />
-                <Bar dataKey="expense" fill="hsl(var(--expense))" name="Expense" />
-                <Bar dataKey="investment" fill="hsl(var(--investment))" name="Investment" />
-                <Bar dataKey="goal" fill="hsl(var(--founder))" name="Goal" />
-                <Bar dataKey="loan" fill="hsl(var(--daily))" name="Loan" />
-                <Bar dataKey="ip" fill="hsl(var(--notes))" name="IP" />
+                {(chartFilter === 'all' || chartFilter === 'income') && (
+                  <Bar dataKey="income" fill="hsl(var(--income))" name="Income" />
+                )}
+                {(chartFilter === 'all' || chartFilter === 'expense') && (
+                  <Bar dataKey="expense" fill="hsl(var(--expense))" name="Expense" />
+                )}
+                {(chartFilter === 'all' || chartFilter === 'investment') && (
+                  <Bar dataKey="investment" fill="hsl(var(--investment))" name="Investment" />
+                )}
+                {(chartFilter === 'all' || chartFilter === 'goal') && (
+                  <Bar dataKey="goal" fill="hsl(var(--founder))" name="Goal" />
+                )}
+                {(chartFilter === 'all' || chartFilter === 'loan') && (
+                  <Bar dataKey="loan" fill="hsl(var(--daily))" name="Loan" />
+                )}
+                {(chartFilter === 'all' || chartFilter === 'ip') && (
+                  <Bar dataKey="ip" fill="hsl(var(--notes))" name="IP" />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>

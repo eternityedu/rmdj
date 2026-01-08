@@ -7,7 +7,23 @@ export interface UserSkill {
   id: string;
   user_id: string;
   name: string;
+  youtube_link: string | null;
+  notes: string | null;
+  progress: number;
+  is_currently_learning: boolean;
+  daily_minutes: number;
+  monthly_hours: number;
   created_at: string;
+}
+
+export interface SkillInput {
+  name: string;
+  youtube_link?: string;
+  notes?: string;
+  progress?: number;
+  is_currently_learning?: boolean;
+  daily_minutes?: number;
+  monthly_hours?: number;
 }
 
 export function useUserSkills() {
@@ -32,12 +48,21 @@ export function useUserSkills() {
     setLoading(false);
   };
 
-  const addSkill = async (name: string) => {
+  const addSkill = async (input: SkillInput) => {
     if (!user) return { error: new Error('Not authenticated') };
 
     const { data, error } = await supabase
       .from('user_skills')
-      .insert([{ name, user_id: user.id }])
+      .insert([{
+        name: input.name,
+        youtube_link: input.youtube_link || null,
+        notes: input.notes || null,
+        progress: input.progress || 0,
+        is_currently_learning: input.is_currently_learning ?? true,
+        daily_minutes: input.daily_minutes || 30,
+        monthly_hours: input.monthly_hours || 10,
+        user_id: user.id
+      }])
       .select()
       .single();
 
@@ -50,10 +75,10 @@ export function useUserSkills() {
     return { error: null };
   };
 
-  const updateSkill = async (id: string, name: string) => {
+  const updateSkill = async (id: string, updates: Partial<SkillInput>) => {
     const { error } = await supabase
       .from('user_skills')
-      .update({ name })
+      .update(updates)
       .eq('id', id);
 
     if (error) {
@@ -61,7 +86,7 @@ export function useUserSkills() {
       return { error };
     }
     
-    setSkills(prev => prev.map(s => s.id === id ? { ...s, name } : s));
+    setSkills(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
     return { error: null };
   };
 
