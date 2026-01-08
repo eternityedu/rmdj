@@ -164,21 +164,39 @@ export type Database = {
       user_skills: {
         Row: {
           created_at: string
+          daily_minutes: number | null
           id: string
+          is_currently_learning: boolean | null
+          monthly_hours: number | null
           name: string
+          notes: string | null
+          progress: number | null
           user_id: string
+          youtube_link: string | null
         }
         Insert: {
           created_at?: string
+          daily_minutes?: number | null
           id?: string
+          is_currently_learning?: boolean | null
+          monthly_hours?: number | null
           name: string
+          notes?: string | null
+          progress?: number | null
           user_id: string
+          youtube_link?: string | null
         }
         Update: {
           created_at?: string
+          daily_minutes?: number | null
           id?: string
+          is_currently_learning?: boolean | null
+          monthly_hours?: number | null
           name?: string
+          notes?: string | null
+          progress?: number | null
           user_id?: string
+          youtube_link?: string | null
         }
         Relationships: []
       }
