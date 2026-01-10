@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar, Plus, CheckCircle2, Circle, Trash2, Edit2, Repeat, CalendarDays } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { getDailyTasks, addDailyTask, toggleDailyTask, deleteDailyTask, updateDailyTask, generateId } from '@/lib/storage';
+import { calculateAndSaveProductivity } from '@/lib/productivity';
+import { ProductivityHeatmap } from '@/components/ProductivityHeatmap';
 import { DailyTask } from '@/types';
 import { format, addDays, addMonths, isWithinInterval, parseISO } from 'date-fns';
 
@@ -31,11 +33,12 @@ export function DailyPage() {
   });
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  useEffect(() => { 
-    loadTasks(); 
-  }, []);
-
-  const loadTasks = () => setTasks(getDailyTasks());
+  const loadTasks = useCallback(() => {
+    const allTasks = getDailyTasks();
+    setTasks(allTasks);
+    // Update productivity whenever tasks are loaded
+    calculateAndSaveProductivity(allTasks, today);
+  }, [today]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,6 +231,9 @@ export function DailyPage() {
           </Dialog>
         }
       />
+      
+      {/* Productivity Heatmap */}
+      <ProductivityHeatmap key={`heatmap-${tasks.length}-${completed}`} />
       
       {/* Progress Card */}
       <Card className="border-daily/20 bg-daily/5">
