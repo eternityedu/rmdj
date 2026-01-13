@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          created_at: string
+          description: string | null
+          expenses: number
+          id: string
+          logo: string | null
+          name: string
+          notes: string | null
+          revenue: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          expenses?: number
+          id?: string
+          logo?: string | null
+          name: string
+          notes?: string | null
+          revenue?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          expenses?: number
+          id?: string
+          logo?: string | null
+          name?: string
+          notes?: string | null
+          revenue?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_overviews: {
+        Row: {
+          company_progress: string | null
+          created_at: string
+          date: string
+          discipline_score: number
+          health_score: number
+          id: string
+          notes: string | null
+          study_time: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_progress?: string | null
+          created_at?: string
+          date: string
+          discipline_score?: number
+          health_score?: number
+          id?: string
+          notes?: string | null
+          study_time?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_progress?: string | null
+          created_at?: string
+          date?: string
+          discipline_score?: number
+          health_score?: number
+          id?: string
+          notes?: string | null
+          study_time?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_tasks: {
         Row: {
           created_at: string
@@ -90,6 +171,45 @@ export type Database = {
           id?: string
           note?: string | null
           source?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          category: string
+          content: string | null
+          created_at: string
+          id: string
+          is_pinned: boolean
+          keywords: string[] | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          keywords?: string[] | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          keywords?: string[] | null
+          tags?: string[] | null
+          title?: string
           updated_at?: string
           user_id?: string
         }
@@ -197,6 +317,84 @@ export type Database = {
           progress?: number | null
           user_id?: string
           youtube_link?: string | null
+        }
+        Relationships: []
+      }
+      vision_items: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_completed: boolean
+          progress: number
+          target_date: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_completed?: boolean
+          progress?: number
+          target_date?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_completed?: boolean
+          progress?: number
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_reviews: {
+        Row: {
+          challenges: string[] | null
+          created_at: string
+          id: string
+          improvements: string[] | null
+          next_week_goals: string[] | null
+          updated_at: string
+          user_id: string
+          week_end: string
+          week_start: string
+          wins: string[] | null
+        }
+        Insert: {
+          challenges?: string[] | null
+          created_at?: string
+          id?: string
+          improvements?: string[] | null
+          next_week_goals?: string[] | null
+          updated_at?: string
+          user_id: string
+          week_end: string
+          week_start: string
+          wins?: string[] | null
+        }
+        Update: {
+          challenges?: string[] | null
+          created_at?: string
+          id?: string
+          improvements?: string[] | null
+          next_week_goals?: string[] | null
+          updated_at?: string
+          user_id?: string
+          week_end?: string
+          week_start?: string
+          wins?: string[] | null
         }
         Relationships: []
       }

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Plus, CheckCircle2, Circle, Trash2, Edit2, Repeat, CalendarDays } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Calendar, Plus, CheckCircle2, Circle, Trash2, Edit2, Repeat, CalendarDays, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { getDailyTasks, addDailyTask, toggleDailyTask, deleteDailyTask, updateDailyTask, generateId } from '@/lib/storage';
-import { calculateAndSaveProductivity } from '@/lib/productivity';
+import { useDailyTasks, DailyTaskUI } from '@/hooks/useDailyTasks';
 import { ProductivityHeatmap } from '@/components/ProductivityHeatmap';
-import { DailyTask } from '@/types';
-import { format, addDays, addMonths, isWithinInterval, parseISO } from 'date-fns';
+import { format, addDays, addMonths } from 'date-fns';
 
 const priorityColors = { 
   high: 'text-expense border-expense/30', 
@@ -21,62 +19,58 @@ const priorityColors = {
 };
 
 export function DailyPage() {
-  const [tasks, setTasks] = useState<DailyTask[]>([]);
+  const { tasks, loading, addTask, updateTask, toggleTask, deleteTask, getTodayTasks } = useDailyTasks();
   const [isOpen, setIsOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
+  const [editingTask, setEditingTask] = useState<DailyTaskUI | null>(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ 
     title: '', 
-    priority: 'medium' as DailyTask['priority'], 
+    priority: 'medium' as 'high' | 'medium' | 'low', 
     category: '',
     isEveryday: false,
     duration: 'single' as 'single' | 'week' | 'month',
   });
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const loadTasks = useCallback(() => {
-    const allTasks = getDailyTasks();
-    setTasks(allTasks);
-    // Update productivity whenever tasks are loaded
-    calculateAndSaveProductivity(allTasks, today);
-  }, [today]);
+  // Get today's tasks using the hook's method
+  const todayTasks = useMemo(() => getTodayTasks(today), [getTodayTasks, today]);
+  
+  const completed = todayTasks.filter(t => t.is_completed).length;
+  const progress = todayTasks.length > 0 ? Math.round((completed / todayTasks.length) * 100) : 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     
-    if (editingTask) {
-      // Update existing task
-      updateDailyTask(editingTask.id, {
-        title: form.title,
-        priority: form.priority,
-        category: form.category || 'General',
-        isEveryday: form.isEveryday,
-        duration: form.duration,
-      });
-    } else {
-      // Calculate end date based on duration
-      let endDate = today;
+    // Calculate end date based on duration
+    let endDate: string | undefined = undefined;
+    if (!form.isEveryday) {
       if (form.duration === 'week') {
         endDate = format(addDays(new Date(), 6), 'yyyy-MM-dd');
       } else if (form.duration === 'month') {
         endDate = format(addMonths(new Date(), 1), 'yyyy-MM-dd');
       }
+    }
 
-      const newTask: DailyTask = {
-        id: generateId(),
+    if (editingTask) {
+      await updateTask(editingTask.id, {
         title: form.title,
-        completed: false,
+        is_everyday: form.isEveryday,
+        duration: form.duration,
+      });
+    } else {
+      await addTask({
+        title: form.title,
+        is_everyday: form.isEveryday,
+        duration: form.duration,
+        start_date: today,
+        end_date: endDate,
         priority: form.priority,
         category: form.category || 'General',
-        date: today,
-        isEveryday: form.isEveryday,
-        duration: form.duration,
-        startDate: today,
-        endDate: form.isEveryday ? undefined : endDate,
-      };
-      addDailyTask(newTask);
+      });
     }
     
-    loadTasks();
+    setSaving(false);
     resetForm();
   };
 
@@ -86,54 +80,34 @@ export function DailyPage() {
     setIsOpen(false);
   };
 
-  const handleEdit = (task: DailyTask) => {
+  const handleEdit = (task: DailyTaskUI) => {
     setEditingTask(task);
     setForm({
       title: task.title,
-      priority: task.priority,
-      category: task.category,
-      isEveryday: task.isEveryday || false,
-      duration: task.duration || 'single',
+      priority: task.priority || 'medium',
+      category: task.category || '',
+      isEveryday: task.is_everyday,
+      duration: task.duration,
     });
     setIsOpen(true);
   };
 
-  const handleToggle = (id: string) => { 
-    toggleDailyTask(id); 
-    loadTasks(); 
+  const handleToggle = async (id: string) => { 
+    await toggleTask(id); 
   };
   
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    deleteDailyTask(id);
-    loadTasks();
+    await deleteTask(id);
   };
 
-  // Filter tasks for today - include everyday tasks, tasks for today, and tasks within their duration period
-  const todayTasks = tasks.filter(t => {
-    // Everyday tasks always show
-    if (t.isEveryday) return true;
-    
-    // Tasks created today
-    if (t.date === today) return true;
-    
-    // Tasks within their duration period
-    if (t.startDate && t.endDate) {
-      try {
-        const start = parseISO(t.startDate);
-        const end = parseISO(t.endDate);
-        const todayDate = parseISO(today);
-        return isWithinInterval(todayDate, { start, end });
-      } catch {
-        return false;
-      }
-    }
-    
-    return false;
-  });
-
-  const completed = todayTasks.filter(t => t.completed).length;
-  const progress = todayTasks.length > 0 ? Math.round((completed / todayTasks.length) * 100) : 0;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
@@ -166,7 +140,7 @@ export function DailyPage() {
                   <Label>Priority</Label>
                   <Select 
                     value={form.priority} 
-                    onValueChange={(v) => setForm({ ...form, priority: v as DailyTask['priority'] })}
+                    onValueChange={(v) => setForm({ ...form, priority: v as 'high' | 'medium' | 'low' })}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -223,7 +197,8 @@ export function DailyPage() {
                   </div>
                 )}
                 
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full" disabled={saving}>
+                  {saving ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
                   {editingTask ? 'Update Task' : 'Add Task'}
                 </Button>
               </form>
@@ -258,24 +233,24 @@ export function DailyPage() {
             {todayTasks.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No tasks for today</p>
             ) : (
-              todayTasks.sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0)).map(task => (
+              todayTasks.sort((a, b) => (a.is_completed ? 1 : 0) - (b.is_completed ? 1 : 0)).map(task => (
                 <div 
                   key={task.id} 
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer active:scale-[0.98] transition-transform min-h-[52px] ${task.completed ? 'bg-muted/20 opacity-60' : 'bg-muted/30'} ${priorityColors[task.priority]}`} 
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer active:scale-[0.98] transition-transform min-h-[52px] ${task.is_completed ? 'bg-muted/20 opacity-60' : 'bg-muted/30'} ${priorityColors[task.priority || 'medium']}`} 
                   onClick={() => handleToggle(task.id)}
                 >
-                  {task.completed ? <CheckCircle2 size={18} className="text-income shrink-0" /> : <Circle size={18} className="shrink-0" />}
+                  {task.is_completed ? <CheckCircle2 size={18} className="text-income shrink-0" /> : <Circle size={18} className="shrink-0" />}
                   <div className="flex-1 min-w-0">
-                    <span className={`${task.completed ? 'line-through' : ''} block truncate`}>{task.title}</span>
+                    <span className={`${task.is_completed ? 'line-through' : ''} block truncate`}>{task.title}</span>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-muted-foreground">{task.category}</span>
-                      {task.isEveryday && (
+                      {task.is_everyday && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-daily/20 text-daily flex items-center gap-1">
                           <Repeat size={10} />
                           Everyday
                         </span>
                       )}
-                      {!task.isEveryday && task.duration && task.duration !== 'single' && (
+                      {!task.is_everyday && task.duration && task.duration !== 'single' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-notes/20 text-notes">
                           {task.duration === 'week' ? '7 days' : '30 days'}
                         </span>
