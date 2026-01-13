@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Edit2, Trash2, TrendingUp, TrendingDown, Upload, X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Building2, Plus, Edit2, Trash2, TrendingUp, TrendingDown, Upload, X, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { getCompanies, saveCompanies, generateId } from '@/lib/storage';
-import { Company } from '@/types';
+import { useCompanies, Company } from '@/hooks/useCompanies';
 
 const statusColors = {
   idea: 'bg-muted text-muted-foreground',
@@ -29,10 +28,11 @@ const statusLabels = {
 };
 
 export function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const { companies, loading, addCompany, updateCompany, deleteCompany } = useCompanies();
   const [isOpen, setIsOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: '',
@@ -43,14 +43,6 @@ export function CompaniesPage() {
     notes: '',
     logo: '',
   });
-
-  useEffect(() => {
-    loadCompanies();
-  }, []);
-
-  const loadCompanies = () => {
-    setCompanies(getCompanies());
-  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -73,28 +65,27 @@ export function CompaniesPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const companyData: Company = {
-      id: editingCompany?.id || generateId(),
+    setSaving(true);
+
+    const companyData = {
       name: form.name,
-      description: form.description,
+      description: form.description || null,
       status: form.status,
       revenue: parseFloat(form.revenue) || 0,
       expenses: parseFloat(form.expenses) || 0,
-      notes: form.notes,
-      logo: form.logo || undefined,
-      createdAt: editingCompany?.createdAt || new Date().toISOString(),
+      notes: form.notes || null,
+      logo: form.logo || null,
     };
 
     if (editingCompany) {
-      const updated = companies.map(c => c.id === editingCompany.id ? companyData : c);
-      saveCompanies(updated);
+      await updateCompany(editingCompany.id, companyData);
     } else {
-      saveCompanies([...companies, companyData]);
+      await addCompany(companyData);
     }
 
-    loadCompanies();
+    setSaving(false);
     resetForm();
   };
 
@@ -109,20 +100,19 @@ export function CompaniesPage() {
     setEditingCompany(company);
     setForm({
       name: company.name,
-      description: company.description,
+      description: company.description || '',
       status: company.status,
       revenue: company.revenue.toString(),
       expenses: company.expenses.toString(),
-      notes: company.notes,
+      notes: company.notes || '',
       logo: company.logo || '',
     });
     setLogoPreview(company.logo || null);
     setIsOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    saveCompanies(companies.filter(c => c.id !== id));
-    loadCompanies();
+  const handleDelete = async (id: string) => {
+    await deleteCompany(id);
   };
 
   const formatCurrency = (amount: number) => {
@@ -132,6 +122,14 @@ export function CompaniesPage() {
       maximumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-fade-in pb-20 lg:pb-6">
@@ -254,7 +252,8 @@ export function CompaniesPage() {
                     rows={2}
                   />
                 </div>
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full" disabled={saving}>
+                  {saving ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
                   {editingCompany ? 'Update Company' : 'Add Company'}
                 </Button>
               </form>
