@@ -1,15 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Home, TrendingUp, TrendingDown, Brain, Building2, AlertCircle, Crown, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFinancialEntries } from '@/hooks/useFinancialEntries';
 import { useUserSkills } from '@/hooks/useUserSkills';
+import { useCompanies } from '@/hooks/useCompanies';
 import { format } from 'date-fns';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+
+const CHART_COLORS = {
+  primary: 'hsl(160, 84%, 39%)',
+  accent: 'hsl(38, 92%, 50%)',
+  income: 'hsl(142, 76%, 45%)',
+  expense: 'hsl(0, 84%, 60%)',
+  skills: 'hsl(187, 92%, 50%)',
+  investment: 'hsl(199, 89%, 48%)',
+  muted: 'hsl(215, 20%, 45%)',
+};
 
 export function HomePage() {
   const { entries, stats, loading: moneyLoading } = useFinancialEntries();
   const { skills, loading: skillsLoading } = useUserSkills();
+  const { companies, loading: companiesLoading } = useCompanies();
   const [insights, setInsights] = useState<Array<{ id: string; message: string; type: 'up' | 'down' | 'neutral' }>>([]);
 
   useEffect(() => {
@@ -43,7 +56,46 @@ export function HomePage() {
     }).format(amount);
   };
 
-  if (moneyLoading || skillsLoading) {
+  // Calculate chart data
+  const companiesChartData = useMemo(() => {
+    const totalRevenue = companies.reduce((acc, c) => acc + Number(c.revenue), 0);
+    const totalExpenses = companies.reduce((acc, c) => acc + Number(c.expenses), 0);
+    const profit = totalRevenue - totalExpenses;
+    
+    if (companies.length === 0) return [];
+    
+    return [
+      { name: 'Revenue', value: totalRevenue, color: CHART_COLORS.income },
+      { name: 'Expenses', value: totalExpenses, color: CHART_COLORS.expense },
+      { name: profit >= 0 ? 'Profit' : 'Loss', value: Math.abs(profit), color: profit >= 0 ? CHART_COLORS.primary : CHART_COLORS.expense },
+    ].filter(d => d.value > 0);
+  }, [companies]);
+
+  const skillsChartData = useMemo(() => {
+    const mastered = skills.filter(s => s.progress >= 100).length;
+    const learning = skills.filter(s => s.is_currently_learning && s.progress < 100).length;
+    const paused = skills.filter(s => !s.is_currently_learning && s.progress < 100).length;
+    
+    if (skills.length === 0) return [];
+    
+    return [
+      { name: 'Mastered', value: mastered, color: CHART_COLORS.primary },
+      { name: 'Learning', value: learning, color: CHART_COLORS.skills },
+      { name: 'Paused', value: paused, color: CHART_COLORS.muted },
+    ].filter(d => d.value > 0);
+  }, [skills]);
+
+  const moneyChartData = useMemo(() => {
+    if (stats.totalIncome === 0 && stats.totalExpenses === 0) return [];
+    
+    return [
+      { name: 'Income', value: stats.totalIncome, color: CHART_COLORS.income },
+      { name: 'Expenses', value: stats.totalExpenses, color: CHART_COLORS.expense },
+      { name: 'Investments', value: stats.totalInvestments, color: CHART_COLORS.investment },
+    ].filter(d => d.value > 0);
+  }, [stats]);
+
+  if (moneyLoading || skillsLoading || companiesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="animate-spin text-primary" size={32} />
@@ -184,6 +236,186 @@ export function HomePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Overview Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Companies Overview */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 size={16} className="text-founder" />
+              Companies Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {companies.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm">
+                <Building2 size={32} className="mb-2 opacity-50" />
+                No companies yet
+              </div>
+            ) : (
+              <>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={companiesChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={55}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {companiesChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(222, 47%, 10%)', 
+                          border: '1px solid hsl(222, 47%, 16%)',
+                          borderRadius: '8px',
+                          color: 'hsl(210, 40%, 98%)'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center mt-2">
+                  {companiesChartData.map((entry, index) => (
+                    <div key={index} className="flex items-center gap-1.5 text-xs">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                      <span className="text-muted-foreground">{entry.name}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-xs text-muted-foreground mt-2">
+                  {companies.length} {companies.length === 1 ? 'company' : 'companies'}
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Skills Overview */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain size={16} className="text-skills" />
+              Skills Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {skills.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm">
+                <Brain size={32} className="mb-2 opacity-50" />
+                No skills yet
+              </div>
+            ) : (
+              <>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={skillsChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={55}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {skillsChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => `${value} skill${value !== 1 ? 's' : ''}`}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(222, 47%, 10%)', 
+                          border: '1px solid hsl(222, 47%, 16%)',
+                          borderRadius: '8px',
+                          color: 'hsl(210, 40%, 98%)'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center mt-2">
+                  {skillsChartData.map((entry, index) => (
+                    <div key={index} className="flex items-center gap-1.5 text-xs">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                      <span className="text-muted-foreground">{entry.name}: {entry.value}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-xs text-muted-foreground mt-2">
+                  {skills.length} total skills
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Money Overview */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp size={16} className="text-income" />
+              Money Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {moneyChartData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm">
+                <TrendingUp size={32} className="mb-2 opacity-50" />
+                No financial data yet
+              </div>
+            ) : (
+              <>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={moneyChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={55}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {moneyChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(222, 47%, 10%)', 
+                          border: '1px solid hsl(222, 47%, 16%)',
+                          borderRadius: '8px',
+                          color: 'hsl(210, 40%, 98%)'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center mt-2">
+                  {moneyChartData.map((entry, index) => (
+                    <div key={index} className="flex items-center gap-1.5 text-xs">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                      <span className="text-muted-foreground">{entry.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Loans Overview */}
       {stats.totalLoans > 0 && (
