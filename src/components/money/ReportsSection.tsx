@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getWallet, getExpenses, getInvestments, getIncomes, getLoans, calculateNetWorth } from '@/lib/storage';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 
 export function ReportsSection() {
