@@ -13,7 +13,7 @@ import { useFinancialEntries, FinancialEntry } from '@/hooks/useFinancialEntries
 import { toast } from 'sonner';
 import { format, subMonths, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar } from 'recharts';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 
 const entryTypes = [
   { value: 'income', label: 'Income', color: 'text-income', bgColor: 'bg-income' },
